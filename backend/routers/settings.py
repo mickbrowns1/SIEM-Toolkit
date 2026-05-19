@@ -10,11 +10,14 @@ ENV_FILE = Path(os.environ.get("ENV_FILE_PATH", "/app/.env"))
 
 # Fields we expose in the UI — order matters for display
 FIELDS = [
-    {"key": "S1_BASE_URL",       "label": "Console URL",         "secret": False, "placeholder": "https://demo.sentinelone.net"},
-    {"key": "S1_API_TOKEN",      "label": "Console API Token",   "secret": True,  "placeholder": "eyJ..."},
-    {"key": "SDL_XDR_URL",       "label": "SDL XDR URL",         "secret": False, "placeholder": "https://xdr.us1.sentinelone.net"},
-    {"key": "SDL_LOG_READ_KEY",  "label": "SDL Log Read Key",    "secret": True,  "placeholder": "1DnK0Y4e..."},
-    {"key": "ANTHROPIC_API_KEY", "label": "Anthropic API Key",   "secret": True,  "placeholder": "sk-ant-..."},
+    {"key": "S1_BASE_URL",          "label": "Console URL",                   "secret": False, "placeholder": "https://demo.sentinelone.net"},
+    {"key": "S1_API_TOKEN",         "label": "Console API Token",             "secret": True,  "placeholder": "eyJ..."},
+    {"key": "SDL_XDR_URL",          "label": "SDL XDR URL",                   "secret": False, "placeholder": "https://xdr.us1.sentinelone.net"},
+    {"key": "SDL_LOG_READ_KEY",     "label": "SDL Log Read Key",              "secret": True,  "placeholder": "1DnK0Y4e..."},
+    {"key": "ANTHROPIC_API_KEY",    "label": "Anthropic API Key",             "secret": True,  "placeholder": "sk-ant-..."},
+    {"key": "STAR_LIBRARY_ONLY",    "label": "STAR Rules — Library Only",     "secret": False, "placeholder": "true",
+     "type": "select", "options": ["true", "false"],
+     "hint": "true = load only SentinelOne Library rules (@sentinelone.com creators). false = include custom tenant rules as well."},
 ]
 
 FIELD_KEYS = {f["key"] for f in FIELDS}

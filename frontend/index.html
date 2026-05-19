@@ -280,6 +280,18 @@ function cvSetFilter(f) {
     return true
   })
 
+  function missingFieldsCell(s) {
+    if (!s.missing_fields?.length) {
+      return s.rule_count
+        ? `<span class="text-emerald-600 text-xs">✓ All fields covered</span>`
+        : `<span class="text-gray-700 text-xs">—</span>`
+    }
+    const chips = s.missing_fields.map(f =>
+      `<span class="px-1.5 py-0.5 bg-red-900/40 border border-red-800/60 rounded text-xs font-mono text-red-300">${esc(f)}</span>`
+    ).join(' ')
+    return `<div class="flex flex-wrap gap-1">${chips}</div>`
+  }
+
   function parserCell(s) {
     if (s.status === 'covered') {
       if (s.parser === 'detected in data') {
@@ -302,7 +314,8 @@ function cvSetFilter(f) {
           <th class="pb-2 pr-4 font-medium">Events (7d)</th>
           <th class="pb-2 pr-4 font-medium">Status</th>
           <th class="pb-2 pr-4 font-medium">Parser</th>
-          <th class="pb-2 font-medium">STAR Rules</th>
+          <th class="pb-2 pr-4 font-medium">STAR Rules</th>
+          <th class="pb-2 font-medium">Detection Fields Missing</th>
         </tr></thead>
         <tbody>${sources.map(s => `
           <tr class="border-b border-gray-800/50 hover:bg-gray-900/30">
@@ -310,7 +323,8 @@ function cvSetFilter(f) {
             <td class="py-2 pr-4 text-xs text-gray-400">${(s.event_count||0).toLocaleString()}</td>
             <td class="py-2 pr-4"><span class="px-2 py-0.5 rounded text-xs border ${STYLES[s.status]||''}">${LABELS[s.status]||s.status}</span></td>
             <td class="py-2 pr-4 text-xs">${parserCell(s)}</td>
-            <td class="py-2 text-xs text-gray-400">${s.rules?.length ? s.rules.map(r=>esc(r.rule)).join(', ') : '—'}</td>
+            <td class="py-2 pr-4 text-xs text-gray-400">${s.rules?.length ? s.rules.map(r=>esc(r.rule)).join(', ') : '—'}</td>
+            <td class="py-2 text-xs">${missingFieldsCell(s)}</td>
           </tr>`).join('')}
         </tbody></table></div>`
 }
@@ -577,6 +591,11 @@ function renderSettingsForm(fields, envExists, envPath) {
     <div class="space-y-1">
       <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide">${esc(f.label)}</label>
       <div class="flex gap-2">
+        ${f.type === 'select' ? `
+        <select id="st-${f.key}" data-key="${f.key}" data-secret="false"
+          class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-purple-500">
+          ${(f.options||[]).map(o => `<option value="${esc(o)}" ${f.value===o?'selected':''}>${esc(o)}</option>`).join('')}
+        </select>` : `
         <input
           id="st-${f.key}"
           type="${f.secret ? 'password' : 'text'}"
@@ -586,9 +605,10 @@ function renderSettingsForm(fields, envExists, envPath) {
           data-secret="${f.secret}"
           class="flex-1 bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-gray-600 focus:outline-none focus:border-purple-500 font-${f.secret ? 'mono' : 'sans'}"
         >
-        ${f.secret ? `<button onclick="toggleSecret('st-${f.key}')" class="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-100 text-xs hover:border-gray-500 transition-colors">Show</button>` : ''}
+        ${f.secret ? `<button onclick="toggleSecret('st-${f.key}')" class="px-3 py-2 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-100 text-xs hover:border-gray-500 transition-colors">Show</button>` : ''}`}
       </div>
-      ${f.set ? `<p class="text-xs text-gray-600">Currently set${f.secret ? ' (masked)' : ': ' + esc(f.value)}</p>` : `<p class="text-xs text-amber-600">Not configured</p>`}
+      ${f.hint ? `<p class="text-xs text-gray-600">${esc(f.hint)}</p>` : ''}
+      ${f.type !== 'select' ? (f.set ? `<p class="text-xs text-gray-600">Currently set${f.secret ? ' (masked)' : ': ' + esc(f.value)}</p>` : `<p class="text-xs text-amber-600">Not configured</p>`) : ''}
     </div>`).join('')
 
   document.getElementById('st-content').innerHTML = `
@@ -636,7 +656,8 @@ function toggleSecret(id) {
 async function saveSettings() {
   const updates = {}
   document.querySelectorAll('[data-key]').forEach(el => {
-    if (el.value.trim()) updates[el.dataset.key] = el.value.trim()
+    // Always save select fields; only save text/password inputs when non-empty
+    if (el.tagName === 'SELECT' || el.value.trim()) updates[el.dataset.key] = el.value.trim()
   })
   if (!Object.keys(updates).length) {
     document.getElementById('st-msg').innerHTML = '<span class="text-gray-400">Nothing to save — fill in at least one field.</span>'

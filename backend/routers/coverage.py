@@ -40,11 +40,15 @@ def _star_query_texts(rule: dict) -> list[str]:
 
 
 @router.post("/load-star-rules")
-async def load_star_rules(library_only: bool = True, db: Session = Depends(get_db)):
+async def load_star_rules(library_only: bool = None, db: Session = Depends(get_db)):
     """Fetch STAR rules from SentinelOne and index their fields.
-    By default loads only Library rules (creator @sentinelone.com).
-    Pass library_only=false to include custom tenant rules as well.
+    library_only defaults to the STAR_LIBRARY_ONLY env var (default true).
+    Pass ?library_only=false to include custom tenant rules as well.
     """
+    import os
+    if library_only is None:
+        library_only = os.environ.get("STAR_LIBRARY_ONLY", "true").lower() != "false"
+
     try:
         rules = await s1_client.get_star_rules()
     except Exception as e:
@@ -355,6 +359,11 @@ def get_coverage_map(db: Session = Depends(get_db)):
                 return info
         return None
 
+    # Fields each rule needs: rule.name → set of field names
+    rule_fields_index: dict[str, set] = {
+        rule.name: set(rule.fields_used or []) for rule in rules
+    }
+
     # Build rule index: source_name → rules that reference it
     rule_by_source: dict[str, list] = {}
     for rule in rules:
@@ -365,6 +374,13 @@ def get_coverage_map(db: Session = Depends(get_db)):
         if not data_sources:
             # Rule with no explicit source filter — applies to all
             rule_by_source.setdefault("__any__", []).append({"rule": rule.name, "type": rule.rule_type})
+
+    # Fields to ignore when computing "missing" — these are metadata/schema fields
+    # always present in events regardless of the parser
+    _SCHEMA_FIELDS = {
+        "dataSource.name", "dataSource.vendor", "dataSource.category",
+        "event.type", "timestamp", "src.endpoint.ip", "src.endpoint.name",
+    }
 
     sources_out = []
     covered_count = 0
@@ -400,16 +416,33 @@ def get_coverage_map(db: Session = Depends(get_db)):
 
         rules_for_src = rule_by_source.get(src.source_name, []) + rule_by_source.get("__any__", [])
 
+        # Fields all associated rules need, minus schema fields always present
+        rule_fields_needed: set = set()
+        for r in rules_for_src:
+            rule_fields_needed |= rule_fields_index.get(r["rule"], set())
+        rule_fields_needed -= _SCHEMA_FIELDS
+
+        # Fields the parser provides
+        parser_provides = parser_index.get(matched_parser, set()) if matched_parser and matched_parser != "detected in data" else set()
+
+        # Missing = fields rules need that the parser doesn't provide.
+        # Only consider dotted-path fields (e.g. src.ip, winEventLog.channel) —
+        # single-word tokens are typically correlation variables or rule metadata.
+        rule_fields_dotted = {f for f in rule_fields_needed if "." in f}
+        missing_fields = sorted(rule_fields_dotted - parser_provides)
+
         sources_out.append({
             "source_name": src.source_name,
             "event_count": src.event_count,
             "status": status,
             "parser": matched_parser,
             "format_type": format_type,
-            "parser_fields": len(parser_index.get(matched_parser, set())) if matched_parser and matched_parser != "detected in data" else 0,
+            "parser_fields": len(parser_provides),
             "parser_detected": src.parser_detected or 0,
             "rules": rules_for_src,
             "rule_count": len(rules_for_src),
+            "missing_fields": missing_fields,
+            "missing_fields_count": len(missing_fields),
             "synced_at": src.synced_at.isoformat() if src.synced_at else None,
         })
 
