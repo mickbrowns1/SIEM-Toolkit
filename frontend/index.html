@@ -738,13 +738,25 @@ async function qsSample() {
       document.getElementById('qs-result').innerHTML = '<p class="text-gray-500 text-sm">No events found for this source in the selected window.</p>'
       return
     }
-    // Collect all field names across events
-    const allFields = [...new Set(r.events.flatMap(e => Object.keys(e)))].sort()
-    const rows = r.events.map(ev => {
+    // Collect all field names across events — pin message last for readability
+    const allFieldsRaw = [...new Set(r.events.flatMap(e => Object.keys(e)))].sort()
+    const allFields = [...allFieldsRaw.filter(f => f !== 'message'), ...allFieldsRaw.filter(f => f === 'message')]
+    const rows = r.events.map((ev, ri) => {
       const cells = allFields.map(f => {
         const v = ev[f]
         const empty = v === null || v === undefined || v === '' || v === 'null'
-        return `<td class="py-1.5 px-2 text-xs font-mono max-w-32 truncate ${empty ? 'text-gray-700 italic' : 'text-gray-300'}" title="${esc(String(v??''))}">${empty ? '∅' : esc(String(v).slice(0,40))}</td>`
+        const raw = String(v ?? '')
+        if (f === 'message' && !empty) {
+          return `<td class="py-1.5 px-2 text-xs font-mono text-gray-300 max-w-md">
+            <div class="flex items-start gap-1.5">
+              <span class="truncate flex-1" title="${esc(raw)}">${esc(raw.slice(0, 80))}${raw.length > 80 ? '…' : ''}</span>
+              <button onclick="qsCopyMsg(this, ${ri})" data-msg="${esc(raw).replace(/"/g, '&quot;')}"
+                class="shrink-0 px-1.5 py-0.5 rounded text-gray-600 hover:text-gray-200 hover:bg-gray-700 transition-colors text-xs leading-none"
+                title="Copy message">⎘</button>
+            </div>
+          </td>`
+        }
+        return `<td class="py-1.5 px-2 text-xs font-mono max-w-32 truncate ${empty ? 'text-gray-700 italic' : 'text-gray-300'}" title="${esc(raw)}">${empty ? '∅' : esc(raw.slice(0,40))}</td>`
       }).join('')
       return `<tr class="border-b border-gray-800/40 hover:bg-gray-800/20">${cells}</tr>`
     }).join('')
@@ -760,6 +772,16 @@ async function qsSample() {
   } catch(e) {
     document.getElementById('qs-result').innerHTML = errBox(e.message)
   } finally { setBtn('btn-qs', false, 'Sample') }
+}
+
+function qsCopyMsg(btn, idx) {
+  const msg = btn.dataset.msg
+  navigator.clipboard.writeText(msg).then(() => {
+    const orig = btn.textContent
+    btn.textContent = '✓'
+    btn.classList.add('text-emerald-400')
+    setTimeout(() => { btn.textContent = orig; btn.classList.remove('text-emerald-400') }, 1500)
+  })
 }
 
 // ── Field Population Rate ──────────────────────────────────────────────────
