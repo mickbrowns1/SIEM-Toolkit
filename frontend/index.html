@@ -682,7 +682,7 @@ function renderQuality() {
       <h2 class="text-sm font-semibold text-white mb-1">Field Population Rate</h2>
       <p class="text-xs text-gray-500 mb-4">Sample up to 500 events and measure what % have each key field populated. Low rates flag parser extraction failures.</p>
       <div class="flex gap-3 flex-wrap mb-3">
-        <select id="qp-source" class="flex-1 min-w-60 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-600">
+        <select id="qp-source" onchange="qpDiscoverFields()" class="flex-1 min-w-60 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-600">
           <option value="">— loading sources… —</option>
         </select>
         <select id="qp-hours" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-600">
@@ -785,6 +785,32 @@ function qsCopyMsg(btn, idx) {
 }
 
 // ── Field Population Rate ──────────────────────────────────────────────────
+
+const QP_SDL_DEFAULTS = [
+  'src.ip','dst.ip','src.port','dst.port','user.name',
+  'event.type','src.process.name','src.process.cmdline',
+  'tgt.file.path','network.direction'
+]
+
+async function qpDiscoverFields() {
+  const source = document.getElementById('qp-source').value
+  if (!source) return
+  const fieldsEl = document.getElementById('qp-fields')
+  fieldsEl.placeholder = 'Discovering fields…'
+  fieldsEl.value = ''
+  try {
+    const r = await apiPost('/api/quality/sample-events', { source, limit: 20, hours: 24 })
+    const seen = [...new Set(r.events.flatMap(e => Object.keys(e)))]
+      .filter(f => f !== 'timestamp')  // skip metadata-only fields
+      .sort()
+    // Merge log fields with SDL defaults, log fields first
+    const merged = [...new Set([...seen, ...QP_SDL_DEFAULTS])]
+    fieldsEl.value = merged.join(', ')
+  } catch {
+    fieldsEl.value = QP_SDL_DEFAULTS.join(', ')
+  }
+  fieldsEl.placeholder = ''
+}
 
 async function qpAnalyze() {
   const source = document.getElementById('qp-source').value
