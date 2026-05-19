@@ -243,9 +243,13 @@ async function cvLoad() {
 
     const filtersEl = document.getElementById('cv-filters')
     filtersEl.classList.remove('hidden')
-    filtersEl.innerHTML = [['all','All'],['covered','Covered'],['parser_needed','Parser Needed']]
-      .map(([f,l]) => `<button onclick="cvSetFilter('${f}')" id="cvf-${f}"
-          class="px-3 py-1 text-xs rounded-full border border-gray-700 text-gray-400 hover:border-gray-500">${l}</button>`).join('')
+    filtersEl.innerHTML = [
+      ['all',            'All'],
+      ['covered',        'Custom Parser'],
+      ['default_only',   'Default Parser Only'],
+      ['parser_needed',  'No Parser'],
+    ].map(([f,l]) => `<button onclick="cvSetFilter('${f}')" id="cvf-${f}"
+        class="px-3 py-1 text-xs rounded-full border border-gray-700 text-gray-400 hover:border-gray-500">${l}</button>`).join('')
 
     if (cvData.synced_at) {
       filtersEl.innerHTML += `<span class="text-xs text-gray-600 self-center ml-2">Synced ${new Date(cvData.synced_at).toLocaleTimeString()}</span>`
@@ -261,14 +265,20 @@ function cvSetFilter(f) {
   cvFilter = f
   document.querySelectorAll('[id^="cvf-"]').forEach(b => {
     const on = b.id === `cvf-${f}`
-    b.className = `px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-purple-700 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`
+    b.className = `px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-purple-700 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500 cursor-pointer'}`
   })
   if (!cvData?.sources) return
 
   const LABELS = { covered: 'Covered', parser_needed: 'Parser Needed' }
   const STYLES  = { covered: 'bg-emerald-900/50 text-emerald-300 border-emerald-700', parser_needed: 'bg-red-900/50 text-red-300 border-red-700' }
 
-  const sources = cvData.sources.filter(s => f === 'all' || s.status === f)
+  const sources = cvData.sources.filter(s => {
+    if (f === 'all')           return true
+    if (f === 'parser_needed') return s.status === 'parser_needed'
+    if (f === 'default_only')  return s.status === 'covered' && s.parser === 'detected in data'
+    if (f === 'covered')       return s.status === 'covered' && s.parser !== 'detected in data'
+    return true
+  })
 
   function parserCell(s) {
     if (s.status === 'covered') {
