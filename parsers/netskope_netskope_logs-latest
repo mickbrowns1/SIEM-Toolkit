@@ -1,0 +1,46 @@
+{
+  attributes: {
+    "dataSource.category": "security",
+    "dataSource.name": "Netskope",
+    "dataSource.vendor": "Netskope"
+  },
+  formats: [
+    {
+      format: ".*${parse=json}$"
+      rewrites: [
+        { input: "_category_id", output: "security_finding.category_uid", match: ".*", replace: "$0" },
+        { input: "_correlation_id", output: "metadata.correlation_uid", match: ".*", replace: "$0" },
+        { input: "_detection_name", output: "detection.name", match: ".*", replace: "$0" },
+        { input: "_event_id", output: "security_finding.activity_id", match: ".*", replace: "$0" },
+        { input: "_id", output: "security_finding.type_uid", match: ".*", replace: "$0" },
+        { input: "_nshostname", output: "network_endpoint.sender_hostname", match: ".*", replace: "$0" },
+        { input: "_resource_name", output: "resource.name", match: ".*", replace: "$0" },
+        { input: "account_name", output: "account.name", match: ".*", replace: "$0" },
+        { input: "action", output: "security_finding.action", match: ".*", replace: "$0" },
+        { input: "alert_id", output: "alert.uid", match: ".*", replace: "$0" },
+        { input: "alert_name", output: "alert.name", match: ".*", replace: "$0" },
+        { input: "alert_type", output: "event.type", match: ".*", replace: "$0" },
+        { input: "device", output: "device.name", match: ".*", replace: "$0" },
+        { input: "dlp_file", output: "dlp.file_name", match: ".*", replace: "$0" },
+        { input: "dlp_incident_id", output: "dlp.incident_id", match: ".*", replace: "$0" },
+        { input: "dlp_rule", output: "dlp.rule", match: ".*", replace: "$0" },
+        { input: "dstip", output: "dst.ip.address", match: ".*", replace: "$0" },
+        { input: "file_name", output: "file.name", match: ".*", replace: "$0" },
+        { input: "file_size", output: "file.size", match: ".*", replace: "$0" },
+        { input: "file_type", output: "file.type", match: ".*", replace: "$0" },
+        { input: "hostname", output: "device.hostname", match: ".*", replace: "$0" },
+        { input: "malware_name", output: "malware.name", match: ".*", replace: "$0" },
+        { input: "md5", output: "file.md5", match: ".*", replace: "$0" },
+        { input: "os", output: "os.name", match: ".*", replace: "$0" },
+        { input: "policy", output: "policy.name", match: ".*", replace: "$0" },
+        { input: "policy_id", output: "policy.uid", match: ".*", replace: "$0" },
+        { input: "protocol", output: "network_connection_info.protocol_name", match: ".*", replace: "$0" },
+        { input: "srcip", output: "src.ip.address", match: ".*", replace: "$0" },
+        { input: "url", output: "url.text", match: ".*", replace: "$0" },
+        { input: "user", output: "user.name", match: ".*", replace: "$0" },
+        { input: "user_id", output: "user.uid", match: ".*", replace: "$0" },
+        { input: "userip", output: "user.ip", match: ".*", replace: "$0" }
+      ]
+    }
+  ]
+}

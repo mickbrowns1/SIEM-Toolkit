@@ -1,0 +1,25 @@
+{
+  attributes: {
+    dataset: "Endpoint",
+    "dataSource.name": "CrowdStrike Falcon",
+    "dataSource.vendor": "CrowdStrike",
+    "dataSource.category": "security"
+  }
+  patterns: {
+    keyPattern: "\\w+"
+    lastValuePattern: "[\\w\\s]+"
+  },
+  formats: [
+    {
+      format: "CEF:$version$\\|$deviceVendor$\\|$deviceProduct$\\|$deviceVersion$\\|$signatureID$\\|$name$\\|$severity$\\|$extension$"
+    },
+    {
+      format: ".*[\\s]$_=keyPattern$=$_$ \\w+=",
+      repeat: true
+    },
+    {
+      format: ".*\\s$_=keyPattern$=$_=lastValuePattern$",
+      repeat: true
+    }
+  ]
+}

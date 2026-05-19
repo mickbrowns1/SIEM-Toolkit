@@ -1,0 +1,29 @@
+{
+  "attributes": {
+    "dataSource.vendor": "AWS",
+    "dataSource.name": "AWS Web Application Firewall",
+    "dataSource.category": "web_security"
+  },
+  "formats": [
+    {
+      "id": "aws_waf_json",
+      "format": ".*${parse=json}$",
+      "rewrites": [
+        { "input": "timestamp", "output": "time", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.clientIp", "output": "src_endpoint.ip", "match": ".*", "replace": "$0" },
+        { "input": "action", "output": "disposition", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.uri", "output": "http_request.url.text", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.country", "output": "src_endpoint.location.country", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.httpMethod", "output": "http_request.http_method", "match": ".*", "replace": "$0" },
+        { "input": "webaclId", "output": "firewall_rule.uid", "match": ".*", "replace": "$0" },
+        { "input": "ruleGroupId", "output": "firewall_rule.name", "match": ".*", "replace": "$0" },
+        { "input": "terminatingRuleType", "output": "firewall_rule.type", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.httpVersion", "output": "http_request.version", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.args", "output": "http_request.url.query_string", "match": ".*", "replace": "$0" },
+        { "input": "requestId", "output": "http_request.uid", "match": ".*", "replace": "$0" },
+        { "input": "httpRequest.headers", "output": "http_request.http_headers", "match": ".*", "replace": "$0" }
+      ],
+      "halt": true
+    }
+  ]
+}

@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SIEM Toolkit</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen flex overflow-hidden font-sans">
+
+  <aside class="w-56 shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col">
+    <div class="p-4 border-b border-gray-800">
+      <div class="flex items-center gap-2">
+        <div class="w-6 h-6 rounded bg-purple-600 flex items-center justify-center text-xs font-bold text-white">S1</div>
+        <span class="font-semibold text-sm text-white">SIEM Toolkit</span>
+      </div>
+      <p class="text-xs text-gray-500 mt-1">demo.sentinelone.net</p>
+    </div>
+    <nav class="flex-1 p-3 space-y-1">
+      <a href="#/" data-page="home"       class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Overview</a>
+      <a href="#/coverage" data-page="coverage" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Parser Coverage</a>
+      <a href="#/ingest" data-page="ingest"   class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Ingest Dashboard</a>
+      <a href="#/onboarding" data-page="onboarding" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Onboarding</a>
+    </nav>
+  </aside>
+
+  <main class="flex-1 overflow-auto" id="main"></main>
+
+<script>
+const API = 'http://localhost:8001'
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, opts)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json()
+}
+const apiGet  = path => apiFetch(path)
+const apiPost = (path, body) => apiFetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
+const apiForm = (path, form) => apiFetch(path, { method:'POST', body:form })
+
+function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+function statCard(label, value, color = 'text-gray-200') {
+  return `<div class="bg-gray-900 border border-gray-800 rounded-lg p-4 text-center">
+    <div class="text-2xl font-bold ${color}">${esc(value)}</div>
+    <div class="text-xs text-gray-500 mt-1">${esc(label)}</div>
+  </div>`
+}
+
+function errBox(msg) {
+  return msg ? `<div class="p-3 bg-red-900/40 border border-red-700 rounded-lg text-sm text-red-300 mb-4">${esc(msg)}</div>` : ''
+}
+
+function setBtn(id, loading, label) {
+  const b = document.getElementById(id)
+  if (!b) return
+  b.disabled = loading
+  b.textContent = loading ? 'Loading…' : label
+}
+
+// ── Simple SVG bar chart ───────────────────────────────────────────────────
+
+function barChart(rows, labelKey, valueKey) {
+  if (!rows?.length) return '<p class="text-gray-600 text-sm h-32 flex items-center justify-center">No data</p>'
+  const max = Math.max(...rows.map(r => r[valueKey] || 0), 1)
+  const W = 680, H = 140, padL = 10, padB = 24
+  const bw = Math.max(4, Math.floor((W - padL) / rows.length) - 3)
+  const bars = rows.map((r, i) => {
+    const bh = Math.floor(((r[valueKey] || 0) / max) * (H - padB - 4))
+    const x = padL + i * (bw + 3)
+    const y = H - padB - bh
+    const lbl = esc(String(r[labelKey] || '').slice(0, 10))
+    return `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#7c3aed" rx="2"/>
+            <text x="${x + bw/2}" y="${H - 4}" text-anchor="middle" fill="#6b7280" font-size="8">${lbl}</text>`
+  }).join('')
+  return `<svg viewBox="0 0 ${W} ${H}" class="w-full">${bars}</svg>`
+}
+
+// ── Home ──────────────────────────────────────────────────────────────────
+
+function renderHome() {
+  set(`<div class="p-8 max-w-5xl">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-white">SIEM Engineering Toolkit</h1>
+      <p class="text-gray-400 mt-1">SentinelOne AI-SIEM · demo.sentinelone.net</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      ${homeCard('#/coverage','Parser Coverage Map','Cross-reference SDL parser fields against STAR and Sigma rule fields. Surface parsed-but-unused fields as reduction candidates.','Open Coverage Map','from-purple-700 to-purple-900')}
+      ${homeCard('#/ingest','Ingest Dashboard','Visualize event volume by source and type. Project monthly GB costs and simulate exclusion filters before applying them.','Open Dashboard','from-blue-700 to-blue-900')}
+      ${homeCard('#/onboarding','Onboarding Accelerator','Step-by-step guide for onboarding a new log source using Claude Code directly — no API key required.','View Guide','from-emerald-700 to-emerald-900')}
+    </div>
+  </div>`)
+}
+
+function homeCard(href, title, desc, cta, grad) {
+  return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-6 flex flex-col gap-4">
+    <div class="w-10 h-10 rounded-lg bg-gradient-to-br ${grad}"></div>
+    <div><h2 class="font-semibold text-white">${esc(title)}</h2>
+    <p class="text-sm text-gray-400 mt-1 leading-relaxed">${esc(desc)}</p></div>
+    <a href="${href}" class="mt-auto text-sm text-purple-400 hover:text-purple-300 font-medium">${esc(cta)} →</a>
+  </div>`
+}
+
+// ── Coverage ──────────────────────────────────────────────────────────────
+
+let cvFilter = 'all', cvData = null
+
+function renderCoverage() {
+  set(`<div class="p-8 max-w-6xl">
+    <div class="flex items-start justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Parser Coverage Map</h1>
+        <p class="text-sm text-gray-400 mt-1">Cross-reference SDL parser fields against STAR / Sigma rule fields</p>
+      </div>
+      <div class="flex gap-2 flex-wrap justify-end">
+        <button id="btn-star" onclick="loadStar()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load STAR Rules</button>
+        <button id="btn-sdl-parsers" onclick="loadSDLParsers()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load SDL Parsers</button>
+        <button onclick="document.getElementById('f-sigma').click()" class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Upload Sigma Rules</button>
+        <button onclick="document.getElementById('f-parser').click()" class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Upload Parser</button>
+        <button onclick="cvReset()" class="px-3 py-1.5 text-sm bg-red-900/60 hover:bg-red-800 rounded-lg text-red-300">Reset</button>
+      </div>
+    </div>
+    <input type="file" id="f-sigma" accept=".yml,.yaml" multiple class="hidden" onchange="cvUploadSigma(this.files)">
+    <input type="file" id="f-parser" accept=".json" class="hidden" onchange="cvUploadParser(this.files[0])">
+    <div id="cv-err"></div>
+    <div id="cv-stats"></div>
+    <div id="cv-filters" class="flex gap-2 mb-4 hidden"></div>
+    <div id="cv-table"></div>
+  </div>`)
+  cvLoad()
+}
+
+async function loadSDLParsers() {
+  setBtn('btn-sdl-parsers', true)
+  document.getElementById('cv-err').innerHTML = ''
+  try {
+    const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
+    if (res.errors?.length) {
+      document.getElementById('cv-err').innerHTML = errBox(`${res.errors.length} parser(s) failed to load: ${res.errors.map(e=>e.parser).join(', ')}`)
+    }
+    cvLoad()
+  } catch(e) {
+    document.getElementById('cv-err').innerHTML = errBox(e.message)
+  } finally {
+    setBtn('btn-sdl-parsers', false, 'Load SDL Parsers')
+  }
+}
+
+async function loadStar() {
+  setBtn('btn-star', true)
+  document.getElementById('cv-err').innerHTML = ''
+  try { await apiPost('/api/coverage/load-star-rules', {}); cvLoad() }
+  catch(e) { document.getElementById('cv-err').innerHTML = errBox(e.message) }
+  finally { setBtn('btn-star', false, 'Load STAR Rules') }
+}
+
+async function cvUploadSigma(files) {
+  const form = new FormData()
+  Array.from(files).forEach(f => form.append('files', f))
+  try { await apiForm('/api/coverage/upload-sigma', form); cvLoad() }
+  catch(e) { document.getElementById('cv-err').innerHTML = errBox(e.message) }
+}
+
+async function cvUploadParser(file) {
+  const form = new FormData(); form.append('file', file)
+  try { await apiForm('/api/coverage/upload-parser', form); cvLoad() }
+  catch(e) { document.getElementById('cv-err').innerHTML = errBox(e.message) }
+}
+
+async function cvReset() {
+  await apiGet('/api/coverage/reset'); cvData = null; cvLoad()
+}
+
+async function cvLoad() {
+  try {
+    cvData = await apiGet('/api/coverage/map')
+    const s = cvData.summary
+    document.getElementById('cv-stats').innerHTML = `
+      <div class="grid grid-cols-5 gap-3 mb-6">
+        ${statCard('Parser Fields', s.total_parser_fields)}
+        ${statCard('Rule Fields', s.total_rule_fields)}
+        ${statCard('Covered', s.covered, 'text-emerald-400')}
+        ${statCard('Parsed Unused', s.parsed_but_unused, 'text-yellow-400')}
+        ${statCard('Missing Parser', s.rules_missing_parser, 'text-red-400')}
+      </div>`
+    const filtersEl = document.getElementById('cv-filters')
+    filtersEl.classList.remove('hidden')
+    filtersEl.innerHTML = [['all','All'],['covered','Covered'],['unused','Parsed Unused'],['missing_parser','Missing Parser']]
+      .map(([f,l]) => `<button onclick="cvSetFilter('${f}')" id="cvf-${f}"
+          class="px-3 py-1 text-xs rounded-full border border-gray-700 text-gray-400 hover:border-gray-500">${l}</button>`).join('')
+    cvSetFilter(cvFilter)
+  } catch {
+    document.getElementById('cv-table').innerHTML = '<p class="text-gray-600 text-sm">Load STAR rules or upload parsers to begin.</p>'
+  }
+}
+
+function suggestParser(field, dataSources) {
+  if (dataSources && dataSources.length) {
+    return 'Parser needed for: ' + dataSources.join(', ')
+  }
+  // Fallback if no dataSource.name found in rule queries
+  const f = field.toLowerCase()
+  if (f.startsWith('wineventlog'))  return 'Windows Event Log (WEL) parser'
+  if (f.startsWith('event.'))       return 'Event normalisation parser'
+  if (f.includes('dns'))            return 'DNS log parser'
+  if (f.includes('process'))        return 'Endpoint process parser'
+  return 'Custom parser needed'
+}
+
+function cvSetFilter(f) {
+  cvFilter = f
+  document.querySelectorAll('[id^="cvf-"]').forEach(b => {
+    const on = b.id === `cvf-${f}`
+    b.className = `px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-purple-700 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`
+  })
+  if (!cvData) return
+  const LABELS = { covered:'Covered', unused:'Parsed Unused', missing_parser:'Missing Parser' }
+  const STYLES = { covered:'bg-emerald-900/50 text-emerald-300 border-emerald-700', unused:'bg-yellow-900/50 text-yellow-300 border-yellow-700', missing_parser:'bg-red-900/50 text-red-300 border-red-700' }
+  const fields = Object.entries(cvData.fields).filter(([,d]) => f === 'all' || d.status === f)
+  const showSuggest = f === 'missing_parser' || f === 'all'
+  document.getElementById('cv-table').innerHTML = fields.length === 0
+    ? '<p class="text-gray-600 text-sm">No fields match this filter.</p>'
+    : `<div class="overflow-x-auto"><table class="w-full text-sm">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-800">
+          <th class="pb-2 pr-4 font-medium">Field</th>
+          <th class="pb-2 pr-4 font-medium">Status</th>
+          <th class="pb-2 pr-4 font-medium">Parser / Suggestion</th>
+          <th class="pb-2 font-medium">Blocked rules</th>
+        </tr></thead>
+        <tbody>${fields.map(([field, d]) => `
+          <tr class="border-b border-gray-800/50 hover:bg-gray-900/30">
+            <td class="py-2 pr-4 font-mono text-xs text-gray-200">${esc(field)}</td>
+            <td class="py-2 pr-4"><span class="px-2 py-0.5 rounded text-xs border ${STYLES[d.status]||''}">${LABELS[d.status]||d.status}</span></td>
+            <td class="py-2 pr-4 text-xs ${d.status === 'missing_parser' ? 'text-amber-400 italic' : 'text-gray-400'}">
+              ${d.status === 'missing_parser' ? '⚠ ' + esc(suggestParser(field, d.data_sources)) : esc(d.parser_name || '—')}
+            </td>
+            <td class="py-2 text-xs text-gray-400">${d.rules?.length ? d.rules.map(r=>esc(r.rule)).join(', ') : '—'}</td>
+          </tr>`).join('')}
+        </tbody></table></div>`
+}
+
+// ── Ingest ────────────────────────────────────────────────────────────────
+
+let igDays = 7
+
+function renderIngest() {
+  set(`<div class="p-8 max-w-6xl">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">Ingest Dashboard</h1>
+        <p class="text-sm text-gray-400 mt-1">Event volume · cost projection · filter simulator</p>
+      </div>
+      <div class="flex gap-2">
+        ${[7,14,30].map(d=>`<button onclick="igSetDays(${d})" id="ig-d${d}"
+          class="px-3 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:border-gray-500">${d}d</button>`).join('')}
+      </div>
+    </div>
+    <div id="ig-err"></div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-5">
+      <h2 class="text-sm font-medium text-gray-300 mb-4">Daily Event Volume</h2>
+      <div id="ig-chart"><p class="text-gray-600 text-sm">Loading…</p></div>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-5">
+      <h2 class="text-sm font-medium text-gray-300 mb-4">Top Sources</h2>
+      <div id="ig-sources"><p class="text-gray-600 text-sm">Loading…</p></div>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-5">
+      <h2 class="text-sm font-medium text-gray-300 mb-1">Filter Simulator</h2>
+      <p class="text-xs text-gray-500 mb-4">Estimate events and GB eliminated by dropping a source + event type combination.</p>
+      <div class="flex gap-3 flex-wrap mb-4">
+        <input id="ig-src" placeholder="Source name (optional)"
+          class="flex-1 min-w-48 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-600">
+        <input id="ig-evt" placeholder="Event type (optional)"
+          class="flex-1 min-w-48 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-gray-600 focus:outline-none focus:border-purple-600">
+        <button onclick="igSimulate()" id="btn-sim"
+          class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Simulate</button>
+      </div>
+      <div id="ig-sim-result"></div>
+    </div>
+  </div>`)
+  igSetDays(igDays)
+}
+
+function igSetDays(d) {
+  igDays = d
+  ;[7,14,30].forEach(n => {
+    const b = document.getElementById(`ig-d${n}`)
+    if (b) b.className = `px-3 py-1.5 text-xs rounded-lg border transition-colors ${n===d ? 'bg-purple-700 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`
+  })
+  igLoad()
+}
+
+async function igLoad() {
+  try {
+    const daily = await apiGet(`/api/ingest/daily-volume?days=${igDays}`)
+    document.getElementById('ig-chart').innerHTML = barChart(daily, 'date', 'events')
+  } catch(e) {
+    document.getElementById('ig-chart').innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
+  }
+  try {
+    const { data = [] } = await apiGet(`/api/ingest/top-sources?days=${igDays}`)
+    const rows = data.map(r => {
+      const name = r['dataSource.name'] || r.name || 'unknown'
+      const evts = r.events || 0
+      return `<tr class="border-b border-gray-800/50">
+        <td class="py-2 font-mono text-xs text-gray-200">${esc(name)}</td>
+        <td class="py-2 text-right text-gray-300">${evts.toLocaleString()}</td>
+        <td class="py-2 text-right text-gray-400">${(evts/1e6*0.5).toFixed(3)}</td>
+      </tr>`
+    })
+    document.getElementById('ig-sources').innerHTML = rows.length ? `
+      <table class="w-full text-sm">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-800">
+          <th class="pb-2 font-medium">Source</th>
+          <th class="pb-2 text-right font-medium">Events</th>
+          <th class="pb-2 text-right font-medium">Est. GB</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table>` : `<p class="text-gray-500 text-sm">No data — check that S1_BASE_URL points to your SDL-enabled tenant.</p>`
+  } catch(e) {
+    document.getElementById('ig-sources').innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
+  }
+}
+
+async function igSimulate() {
+  setBtn('btn-sim', true)
+  try {
+    const r = await apiPost('/api/ingest/simulate-filter', {
+      source: document.getElementById('ig-src').value,
+      event_type: document.getElementById('ig-evt').value,
+      days: igDays, gb_per_million_events: 0.5
+    })
+    document.getElementById('ig-sim-result').innerHTML = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        ${statCard('Matched Events', (r.matched_events||0).toLocaleString(), 'text-purple-300')}
+        ${statCard(`Est. GB (${igDays}d)`, r.estimated_gb_period||0, 'text-purple-300')}
+        ${statCard('Proj. Monthly Events', (r.projected_monthly_events||0).toLocaleString(), 'text-purple-300')}
+        ${statCard('Proj. Monthly GB', r.projected_monthly_gb||0, 'text-purple-300')}
+      </div>`
+  } catch(e) {
+    document.getElementById('ig-sim-result').innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
+  } finally { setBtn('btn-sim', false, 'Simulate') }
+}
+
+// ── Onboarding ────────────────────────────────────────────────────────────
+
+const PROMPT = `Onboard this log source for SentinelOne SDL. Please generate:
+1. An SDL parser skeleton in augmented-JSON format (/logParsers/ format)
+2. Field mappings from raw fields to the SDL common schema
+3. 2–3 starter STAR detection rules for common threats from this source type
+4. 5 parser test assertions (input line → expected field → expected value)
+
+Log source: [describe source, e.g. "Palo Alto PAN-OS firewall"]
+
+Raw log sample:
+[paste your log lines here]`
+
+function renderOnboarding() {
+  set(`<div class="p-8 max-w-3xl">
+    <div class="mb-8">
+      <h1 class="text-xl font-bold text-white">Onboarding Accelerator</h1>
+      <p class="text-sm text-gray-400 mt-1">Use Claude Code directly — no API key required</p>
+    </div>
+    <div class="space-y-4 mb-8">
+      ${obStep('1. Grab a log sample','Copy 10–50 representative lines from the new log source. Include edge cases — errors, different event types, varying field presence.')}
+      ${obStep('2. Paste into Claude Code','Open Claude Code and say "Onboard this log source for SentinelOne SDL" then paste the sample. Mention the source type if known.')}
+      ${obStep('3. Get your artefacts','Claude returns an SDL parser (augmented-JSON), field mappings to the SDL schema, starter STAR detection rules, and parser test assertions.')}
+      ${obStep('4. Deploy','Drop the parser JSON into your /logParsers/ path. Paste the STAR rules into the AI-SIEM rule editor. Run the test assertions to validate extraction.')}
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+      <div class="px-4 py-2 border-b border-gray-800 flex items-center justify-between">
+        <span class="text-xs font-medium text-gray-400">Prompt template</span>
+        <button onclick="obCopy()" id="btn-copy" class="px-2 py-1 text-xs text-gray-400 hover:text-gray-200">Copy</button>
+      </div>
+      <pre class="p-4 text-xs text-gray-300 font-mono leading-relaxed whitespace-pre-wrap">${esc(PROMPT)}</pre>
+    </div>
+  </div>`)
+}
+
+function obStep(title, desc) {
+  return `<div class="flex gap-4 bg-gray-900 border border-gray-800 rounded-xl p-4">
+    <div class="w-8 h-8 shrink-0 rounded-lg bg-purple-900/60 flex items-center justify-center text-purple-300 text-xs mt-0.5">→</div>
+    <div>
+      <div class="text-sm font-medium text-white">${esc(title)}</div>
+      <div class="text-sm text-gray-400 mt-1">${esc(desc)}</div>
+    </div>
+  </div>`
+}
+
+function obCopy() {
+  navigator.clipboard.writeText(PROMPT)
+  const b = document.getElementById('btn-copy')
+  if (b) { b.textContent = 'Copied!'; setTimeout(() => b.textContent = 'Copy', 1500) }
+}
+
+// ── Router ────────────────────────────────────────────────────────────────
+
+function set(html) { document.getElementById('main').innerHTML = html }
+
+function updateNav(page) {
+  document.querySelectorAll('.nav-link').forEach(el => {
+    const on = el.dataset.page === page
+    el.className = `nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${on ? 'bg-purple-700 text-white' : 'text-gray-400 hover:bg-gray-800 hover:text-gray-100'}`
+  })
+}
+
+function route() {
+  const h = location.hash || '#/'
+  if      (h === '#/coverage')   { updateNav('coverage');   renderCoverage()   }
+  else if (h === '#/ingest')     { updateNav('ingest');     renderIngest()     }
+  else if (h === '#/onboarding') { updateNav('onboarding'); renderOnboarding() }
+  else                           { updateNav('home');       renderHome()       }
+}
+
+window.addEventListener('hashchange', route)
+route()
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
+  backend:
+    build: ./backend
+    ports:
+      - "8001:8000"
+    environment:
+      - S1_API_TOKEN=${S1_API_TOKEN}
+      - S1_BASE_URL=${S1_BASE_URL}
+      - SDL_XDR_URL=${SDL_XDR_URL}
+      - SDL_LOG_READ_KEY=${SDL_LOG_READ_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=postgresql://siem:siem@db:5432/siem
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./parsers:/app/parsers
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=siem
+      - POSTGRES_USER=siem
+      - POSTGRES_PASSWORD=siem
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U siem"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
