@@ -70,18 +70,37 @@ function setBtn(id, loading, label) {
 
 function barChart(rows, labelKey, valueKey) {
   if (!rows?.length) return '<p class="text-gray-600 text-sm h-32 flex items-center justify-center">No data</p>'
-  const max = Math.max(...rows.map(r => r[valueKey] || 0), 1)
-  const W = 680, H = 140, padL = 10, padB = 24
-  const bw = Math.max(4, Math.floor((W - padL) / rows.length) - 3)
-  const bars = rows.map((r, i) => {
-    const bh = Math.floor(((r[valueKey] || 0) / max) * (H - padB - 4))
-    const x = padL + i * (bw + 3)
-    const y = H - padB - bh
-    const lbl = esc(String(r[labelKey] || '').slice(0, 10))
-    return `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#7c3aed" rx="2"/>
-            <text x="${x + bw/2}" y="${H - 4}" text-anchor="middle" fill="#6b7280" font-size="8">${lbl}</text>`
+  const vals = rows.map(r => r[valueKey] || 0)
+  const max = Math.max(...vals, 1)
+  const W = 680, H = 160, padL = 52, padR = 10, padT = 24, padB = 28
+  const chartW = W - padL - padR
+  const chartH = H - padT - padB
+  const bw = Math.max(8, Math.floor(chartW / rows.length) - 4)
+
+  // Y-axis ticks (4 lines)
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => {
+    const val = Math.round(max * t)
+    const y = padT + chartH - Math.floor(t * chartH)
+    const label = val >= 1000 ? (val/1000).toFixed(1)+'k' : val
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#1f2937" stroke-width="1"/>
+            <text x="${padL - 4}" y="${y + 4}" text-anchor="end" fill="#4b5563" font-size="9">${label}</text>`
   }).join('')
-  return `<svg viewBox="0 0 ${W} ${H}" class="w-full">${bars}</svg>`
+
+  const bars = rows.map((r, i) => {
+    const val = r[valueKey] || 0
+    const bh = Math.max(2, Math.floor((val / max) * chartH))
+    const x = padL + i * (chartW / rows.length) + (chartW / rows.length - bw) / 2
+    const y = padT + chartH - bh
+    // date label: show MM/DD
+    const lbl = esc(String(r[labelKey] || '').slice(5, 10))
+    // value label on top of bar
+    const valLbl = val >= 1000 ? (val/1000).toFixed(1)+'k' : val
+    return `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="#7c3aed" rx="2"/>
+            <text x="${x + bw/2}" y="${y - 4}" text-anchor="middle" fill="#a78bfa" font-size="9" font-weight="500">${valLbl}</text>
+            <text x="${x + bw/2}" y="${H - 6}" text-anchor="middle" fill="#6b7280" font-size="9">${lbl}</text>`
+  }).join('')
+
+  return `<svg viewBox="0 0 ${W} ${H}" class="w-full">${ticks}${bars}</svg>`
 }
 
 // ── Home ──────────────────────────────────────────────────────────────────
@@ -265,7 +284,10 @@ function renderIngest() {
     </div>
     <div id="ig-err"></div>
     <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-5">
-      <h2 class="text-sm font-medium text-gray-300 mb-4">Daily Event Volume</h2>
+      <div class="flex items-baseline gap-2 mb-4">
+        <h2 class="text-sm font-medium text-gray-300">Daily Event Volume</h2>
+        <span class="text-xs text-gray-600">events ingested per day</span>
+      </div>
       <div id="ig-chart"><p class="text-gray-600 text-sm">Loading…</p></div>
     </div>
     <div class="bg-gray-900 border border-gray-800 rounded-xl p-5 mb-5">
