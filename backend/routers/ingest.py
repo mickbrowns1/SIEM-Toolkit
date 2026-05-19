@@ -39,24 +39,26 @@ async def get_by_event_type(days: int = Query(7, ge=1, le=90)):
 
 
 @router.get("/daily-volume")
-async def get_daily_volume(days: int = Query(7, ge=1, le=14)):
-    """Total event count per day."""
+async def get_daily_volume(days: int = Query(5, ge=1, le=7)):
+    """Total event count per day — queries run in parallel."""
     import asyncio
-    results = []
+
+    now = datetime.utcnow()
     points = min(days, 7)
-    for i in range(points):
-        day_from = (datetime.utcnow() - timedelta(days=i + 1)).strftime("%Y-%m-%dT00:00:00.000Z")
-        day_to   = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%dT00:00:00.000Z")
-        label    = (datetime.utcnow() - timedelta(days=i + 1)).strftime("%Y-%m-%d")
+
+    async def _fetch_day(i: int) -> dict:
+        day_from = (now - timedelta(days=i + 1)).strftime("%Y-%m-%dT00:00:00.000Z")
+        day_to   = (now - timedelta(days=i)).strftime("%Y-%m-%dT00:00:00.000Z")
+        label    = (now - timedelta(days=i + 1)).strftime("%Y-%m-%d")
         try:
             result = await s1_client.run_powerquery("| group total=count()", day_from, day_to)
-            events_list = result.get("events") if isinstance(result, dict) else []
-            count = events_list[0].get("total", 0) if isinstance(events_list, list) and events_list else 0
+            events_list = result.get("events", []) if isinstance(result, dict) else []
+            count = events_list[0].get("total", 0) if events_list else 0
         except Exception:
             count = 0
-        results.append({"date": label, "events": count})
-        if i < points - 1:
-            await asyncio.sleep(3)
+        return {"date": label, "events": count}
+
+    results = await asyncio.gather(*[_fetch_day(i) for i in range(points)])
     return list(reversed(results))
 
 

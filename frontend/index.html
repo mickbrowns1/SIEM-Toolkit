@@ -249,7 +249,7 @@ function cvSetFilter(f) {
 
 // ── Ingest ────────────────────────────────────────────────────────────────
 
-let igDays = 7
+let igDays = 3
 
 function renderIngest() {
   set(`<div class="p-8 max-w-6xl">
@@ -259,7 +259,7 @@ function renderIngest() {
         <p class="text-sm text-gray-400 mt-1">Event volume · cost projection · filter simulator</p>
       </div>
       <div class="flex gap-2">
-        ${[7,14,30].map(d=>`<button onclick="igSetDays(${d})" id="ig-d${d}"
+        ${[3,5,7].map(d=>`<button onclick="igSetDays(${d})" id="ig-d${d}"
           class="px-3 py-1.5 text-xs rounded-lg border border-gray-700 text-gray-400 hover:border-gray-500">${d}d</button>`).join('')}
       </div>
     </div>
@@ -291,7 +291,7 @@ function renderIngest() {
 
 function igSetDays(d) {
   igDays = d
-  ;[7,14,30].forEach(n => {
+  ;[3,5,7].forEach(n => {
     const b = document.getElementById(`ig-d${n}`)
     if (b) b.className = `px-3 py-1.5 text-xs rounded-lg border transition-colors ${n===d ? 'bg-purple-700 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`
   })
@@ -299,14 +299,25 @@ function igSetDays(d) {
 }
 
 async function igLoad() {
-  try {
-    const daily = await apiGet(`/api/ingest/daily-volume?days=${igDays}`)
-    document.getElementById('ig-chart').innerHTML = barChart(daily, 'date', 'events')
-  } catch(e) {
-    document.getElementById('ig-chart').innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
+  const spinner = `<p class="text-gray-500 text-sm animate-pulse">Querying data lake…</p>`
+  document.getElementById('ig-chart').innerHTML = spinner
+  document.getElementById('ig-sources').innerHTML = spinner
+
+  const [dailyResult, sourcesResult] = await Promise.allSettled([
+    apiGet(`/api/ingest/daily-volume?days=${igDays}`),
+    apiGet(`/api/ingest/top-sources?days=${igDays}`)
+  ])
+
+  // Daily volume chart
+  if (dailyResult.status === 'fulfilled') {
+    document.getElementById('ig-chart').innerHTML = barChart(dailyResult.value, 'date', 'events')
+  } else {
+    document.getElementById('ig-chart').innerHTML = `<p class="text-red-400 text-sm">${esc(dailyResult.reason?.message ?? 'Error')}</p>`
   }
-  try {
-    const { data = [] } = await apiGet(`/api/ingest/top-sources?days=${igDays}`)
+
+  // Top sources table
+  if (sourcesResult.status === 'fulfilled') {
+    const data = sourcesResult.value?.data ?? []
     const rows = data.map(r => {
       const name = r['dataSource.name'] || r.name || 'unknown'
       const evts = r.events || 0
@@ -324,9 +335,9 @@ async function igLoad() {
           <th class="pb-2 text-right font-medium">Est. GB</th>
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
-      </table>` : `<p class="text-gray-500 text-sm">No data — check that S1_BASE_URL points to your SDL-enabled tenant.</p>`
-  } catch(e) {
-    document.getElementById('ig-sources').innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
+      </table>` : `<p class="text-gray-500 text-sm">No data in this period.</p>`
+  } else {
+    document.getElementById('ig-sources').innerHTML = `<p class="text-red-400 text-sm">${esc(sourcesResult.reason?.message ?? 'Error')}</p>`
   }
 }
 
