@@ -2,7 +2,8 @@ import json
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from db import get_db, ParsedRule, ParserField
+from datetime import datetime
+from db import get_db, ParsedRule, ParserField, ActiveSource
 from services import s1_client, rule_parser
 
 router = APIRouter()
@@ -205,63 +206,118 @@ async def load_parser_content(payload: ParserContentPayload, db: Session = Depen
     return {"parser": payload.parser_name, "fields": list(fields), "field_count": len(fields)}
 
 
+@router.post("/sync-sources")
+async def sync_sources(days: int = 7, db: Session = Depends(get_db)):
+    """Pull active dataSource.names from the SDL and store them."""
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    from_dt = (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    to_dt = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    try:
+        result = await s1_client.run_powerquery(
+            "| group events=count() by dataSource.name | sort -events | limit 200",
+            from_dt, to_dt
+        )
+    except Exception as e:
+        raise HTTPException(502, f"PowerQuery error: {e}")
+
+    rows = result.get("events", [])
+    # Clear old and insert fresh
+    db.query(ActiveSource).delete()
+    synced_at = datetime.utcnow()
+    seen = 0
+    for row in rows:
+        name = row.get("dataSource.name")
+        if name:
+            db.add(ActiveSource(
+                source_name=name,
+                event_count=row.get("events", 0),
+                synced_at=synced_at,
+            ))
+            seen += 1
+    db.commit()
+    return {"synced": seen, "sources": [r["dataSource.name"] for r in rows if r.get("dataSource.name")]}
+
+
 @router.get("/map")
 def get_coverage_map(db: Session = Depends(get_db)):
-    """Return coverage analysis: parser fields vs rule fields."""
-    rules = db.query(ParsedRule).all()
+    """
+    Source-centric coverage map.
+    For each active dataSource.name in the SDL:
+      - covered       = a parser is loaded for it
+      - parser_needed = no parser loaded
+    Also surfaces which STAR rules reference each source.
+    """
+    active_sources = db.query(ActiveSource).order_by(ActiveSource.event_count.desc()).all()
     parser_fields_rows = db.query(ParserField).all()
+    rules = db.query(ParsedRule).all()
 
-    # field → list of rules using it + data sources referenced by those rules
-    rule_field_index: dict[str, list] = {}
-    rule_ds_index: dict[str, set] = {}  # field → set of dataSource.name values
+    # parser_name → set of field names
+    parser_index: dict[str, set] = {}
+    for pf in parser_fields_rows:
+        parser_index.setdefault(pf.parser_name, set()).add(pf.field_name)
+
+    # Build a fuzzy match: dataSource.name → parser_name
+    # Parser names like "paloalto", "palo", "okta_authentication-latest" need to match
+    # "Palo Alto Networks Firewall", "Okta", etc.
+    def _find_parser(source_name: str) -> str | None:
+        sn = source_name.lower().replace(" ", "").replace("-", "").replace("_", "")
+        for pname in parser_index:
+            pn = pname.lower().replace(" ", "").replace("-", "").replace("_", "")
+            # Direct substring match in either direction
+            if pn in sn or sn in pn:
+                return pname
+        return None
+
+    # Build rule index: source_name → rules that reference it
+    rule_by_source: dict[str, list] = {}
     for rule in rules:
         query_texts = _star_query_texts(json.loads(rule.raw)) if rule.rule_type == "star" else []
         data_sources = rule_parser.extract_data_sources(query_texts)
-        for field in rule.fields_used or []:
-            rule_field_index.setdefault(field, []).append(
-                {"rule": rule.name, "type": rule.rule_type}
-            )
-            rule_ds_index.setdefault(field, set()).update(data_sources)
+        for ds in data_sources:
+            rule_by_source.setdefault(ds, []).append({"rule": rule.name, "type": rule.rule_type})
+        if not data_sources:
+            # Rule with no explicit source filter — applies to all
+            rule_by_source.setdefault("__any__", []).append({"rule": rule.name, "type": rule.rule_type})
 
-    # field → parser name
-    parser_field_index: dict[str, str] = {
-        pf.field_name: pf.parser_name for pf in parser_fields_rows
-    }
+    sources_out = []
+    covered_count = 0
+    needed_count = 0
 
-    all_fields = set(rule_field_index) | set(parser_field_index)
+    for src in active_sources:
+        matched_parser = _find_parser(src.source_name)
+        status = "covered" if matched_parser else "parser_needed"
+        if status == "covered":
+            covered_count += 1
+        else:
+            needed_count += 1
 
-    detail = {}
-    for f in all_fields:
-        in_parser = f in parser_field_index
-        in_rules = f in rule_field_index
-        detail[f] = {
-            "in_parser": in_parser,
-            "parser_name": parser_field_index.get(f),
-            "data_sources": sorted(rule_ds_index.get(f, set())),
-            "rule_count": len(rule_field_index.get(f, [])),
-            "rules": rule_field_index.get(f, []),
-            "status": (
-                "covered" if in_parser and in_rules
-                else "unused" if in_parser and not in_rules
-                else "missing_parser"
-            ),
-        }
+        rules_for_src = rule_by_source.get(src.source_name, []) + rule_by_source.get("__any__", [])
 
-    parsed_unused = [f for f, d in detail.items() if d["status"] == "unused"]
-    missing_parser = [f for f, d in detail.items() if d["status"] == "missing_parser"]
-    covered = [f for f, d in detail.items() if d["status"] == "covered"]
+        sources_out.append({
+            "source_name": src.source_name,
+            "event_count": src.event_count,
+            "status": status,
+            "parser": matched_parser,
+            "parser_fields": len(parser_index.get(matched_parser, set())) if matched_parser else 0,
+            "rules": rules_for_src,
+            "rule_count": len(rules_for_src),
+            "synced_at": src.synced_at.isoformat() if src.synced_at else None,
+        })
+
+    synced_at = active_sources[0].synced_at.isoformat() if active_sources else None
 
     return {
         "summary": {
-            "total_parser_fields": len(parser_field_index),
-            "total_rule_fields": len(rule_field_index),
-            "covered": len(covered),
-            "parsed_but_unused": len(parsed_unused),
-            "rules_missing_parser": len(missing_parser),
+            "active_sources": len(active_sources),
+            "covered": covered_count,
+            "parser_needed": needed_count,
+            "parsers_loaded": len(parser_index),
+            "rules_loaded": len(rules),
         },
-        "parsed_but_unused": parsed_unused,
-        "rules_missing_parser": missing_parser,
-        "fields": detail,
+        "sources": sources_out,
+        "synced_at": synced_at,
+        "has_sources": len(active_sources) > 0,
     }
 
 

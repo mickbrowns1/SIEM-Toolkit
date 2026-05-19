@@ -30,6 +30,14 @@ class ParserField(Base):
     field_type = Column(String)
 
 
+class ActiveSource(Base):
+    __tablename__ = "active_sources"
+    id = Column(Integer, primary_key=True)
+    source_name = Column(String, unique=True, index=True)
+    event_count = Column(Integer, default=0)
+    synced_at = Column(DateTime, default=datetime.utcnow)
+
+
 class IngestSnapshot(Base):
     __tablename__ = "ingest_snapshots"
     id = Column(Integer, primary_key=True)

@@ -137,17 +137,16 @@ function renderCoverage() {
     <div class="flex items-start justify-between mb-6">
       <div>
         <h1 class="text-xl font-bold text-white">Parser Coverage Map</h1>
-        <p class="text-sm text-gray-400 mt-1">Cross-reference SDL parser fields against STAR / Sigma rule fields</p>
+        <p class="text-sm text-gray-400 mt-1">For each active data source — is a parser loaded?</p>
       </div>
       <div class="flex gap-2 flex-wrap justify-end">
+        <button id="btn-sync" onclick="cvSyncSources()" class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white">Sync Live Sources</button>
         <button id="btn-star" onclick="loadStar()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load STAR Rules</button>
         <button id="btn-sdl-parsers" onclick="loadSDLParsers()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load SDL Parsers</button>
-        <button onclick="document.getElementById('f-sigma').click()" class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Upload Sigma Rules</button>
         <button onclick="document.getElementById('f-parser').click()" class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Upload Parser</button>
         <button onclick="cvReset()" class="px-3 py-1.5 text-sm bg-red-900/60 hover:bg-red-800 rounded-lg text-red-300">Reset</button>
       </div>
     </div>
-    <input type="file" id="f-sigma" accept=".yml,.yaml" multiple class="hidden" onchange="cvUploadSigma(this.files)">
     <input type="file" id="f-parser" accept=".json" class="hidden" onchange="cvUploadParser(this.files[0])">
     <div id="cv-err"></div>
     <div id="cv-stats"></div>
@@ -198,40 +197,54 @@ async function cvReset() {
   await apiGet('/api/coverage/reset'); cvData = null; cvLoad()
 }
 
+async function cvSyncSources() {
+  setBtn('btn-sync', true)
+  document.getElementById('cv-err').innerHTML = ''
+  try {
+    const r = await apiPost('/api/coverage/sync-sources?days=7', {})
+    await cvLoad()
+  } catch(e) {
+    document.getElementById('cv-err').innerHTML = errBox(e.message)
+  } finally { setBtn('btn-sync', false, 'Sync Live Sources') }
+}
+
 async function cvLoad() {
   try {
     cvData = await apiGet('/api/coverage/map')
     const s = cvData.summary
+
     document.getElementById('cv-stats').innerHTML = `
-      <div class="grid grid-cols-5 gap-3 mb-6">
-        ${statCard('Parser Fields', s.total_parser_fields)}
-        ${statCard('Rule Fields', s.total_rule_fields)}
+      <div class="grid grid-cols-4 gap-3 mb-6">
+        ${statCard('Active Sources', s.active_sources)}
         ${statCard('Covered', s.covered, 'text-emerald-400')}
-        ${statCard('Parsed Unused', s.parsed_but_unused, 'text-yellow-400')}
-        ${statCard('Missing Parser', s.rules_missing_parser, 'text-red-400')}
+        ${statCard('Parser Needed', s.parser_needed, 'text-red-400')}
+        ${statCard('Parsers Loaded', s.parsers_loaded, 'text-purple-400')}
       </div>`
+
+    if (!cvData.has_sources) {
+      document.getElementById('cv-filters').classList.add('hidden')
+      document.getElementById('cv-table').innerHTML = `
+        <div class="bg-gray-900/50 border border-gray-800 rounded-lg p-6 text-center text-sm text-gray-500">
+          <p class="mb-2">No active sources synced yet.</p>
+          <p>Click <strong class="text-gray-300">Sync Live Sources</strong> to pull current dataSource.names from the data lake, then <strong class="text-gray-300">Load STAR Rules</strong> and <strong class="text-gray-300">Load SDL Parsers</strong> to see coverage.</p>
+        </div>`
+      return
+    }
+
     const filtersEl = document.getElementById('cv-filters')
     filtersEl.classList.remove('hidden')
-    filtersEl.innerHTML = [['all','All'],['covered','Covered'],['unused','Parsed Unused'],['missing_parser','Missing Parser']]
+    filtersEl.innerHTML = [['all','All'],['covered','Covered'],['parser_needed','Parser Needed']]
       .map(([f,l]) => `<button onclick="cvSetFilter('${f}')" id="cvf-${f}"
           class="px-3 py-1 text-xs rounded-full border border-gray-700 text-gray-400 hover:border-gray-500">${l}</button>`).join('')
-    cvSetFilter(cvFilter)
-  } catch {
-    document.getElementById('cv-table').innerHTML = '<p class="text-gray-600 text-sm">Load STAR rules or upload parsers to begin.</p>'
-  }
-}
 
-function suggestParser(field, dataSources) {
-  if (dataSources && dataSources.length) {
-    return 'Parser needed for: ' + dataSources.join(', ')
+    if (cvData.synced_at) {
+      filtersEl.innerHTML += `<span class="text-xs text-gray-600 self-center ml-2">Synced ${new Date(cvData.synced_at).toLocaleTimeString()}</span>`
+    }
+
+    cvSetFilter(cvFilter)
+  } catch(e) {
+    document.getElementById('cv-table').innerHTML = '<p class="text-gray-600 text-sm">Failed to load coverage data.</p>'
   }
-  // Fallback if no dataSource.name found in rule queries
-  const f = field.toLowerCase()
-  if (f.startsWith('wineventlog'))  return 'Windows Event Log (WEL) parser'
-  if (f.startsWith('event.'))       return 'Event normalisation parser'
-  if (f.includes('dns'))            return 'DNS log parser'
-  if (f.includes('process'))        return 'Endpoint process parser'
-  return 'Custom parser needed'
 }
 
 function cvSetFilter(f) {
@@ -240,28 +253,32 @@ function cvSetFilter(f) {
     const on = b.id === `cvf-${f}`
     b.className = `px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-purple-700 border-purple-600 text-white' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`
   })
-  if (!cvData) return
-  const LABELS = { covered:'Covered', unused:'Parsed Unused', missing_parser:'Missing Parser' }
-  const STYLES = { covered:'bg-emerald-900/50 text-emerald-300 border-emerald-700', unused:'bg-yellow-900/50 text-yellow-300 border-yellow-700', missing_parser:'bg-red-900/50 text-red-300 border-red-700' }
-  const fields = Object.entries(cvData.fields).filter(([,d]) => f === 'all' || d.status === f)
-  const showSuggest = f === 'missing_parser' || f === 'all'
-  document.getElementById('cv-table').innerHTML = fields.length === 0
-    ? '<p class="text-gray-600 text-sm">No fields match this filter.</p>'
+  if (!cvData?.sources) return
+
+  const LABELS = { covered: 'Covered', parser_needed: 'Parser Needed' }
+  const STYLES  = { covered: 'bg-emerald-900/50 text-emerald-300 border-emerald-700', parser_needed: 'bg-red-900/50 text-red-300 border-red-700' }
+
+  const sources = cvData.sources.filter(s => f === 'all' || s.status === f)
+
+  document.getElementById('cv-table').innerHTML = sources.length === 0
+    ? '<p class="text-gray-600 text-sm">No sources match this filter.</p>'
     : `<div class="overflow-x-auto"><table class="w-full text-sm">
         <thead><tr class="text-left text-gray-500 border-b border-gray-800">
-          <th class="pb-2 pr-4 font-medium">Field</th>
+          <th class="pb-2 pr-4 font-medium">Data Source</th>
+          <th class="pb-2 pr-4 font-medium">Events (7d)</th>
           <th class="pb-2 pr-4 font-medium">Status</th>
-          <th class="pb-2 pr-4 font-medium">Parser / Suggestion</th>
-          <th class="pb-2 font-medium">Blocked rules</th>
+          <th class="pb-2 pr-4 font-medium">Parser</th>
+          <th class="pb-2 font-medium">STAR Rules</th>
         </tr></thead>
-        <tbody>${fields.map(([field, d]) => `
+        <tbody>${sources.map(s => `
           <tr class="border-b border-gray-800/50 hover:bg-gray-900/30">
-            <td class="py-2 pr-4 font-mono text-xs text-gray-200">${esc(field)}</td>
-            <td class="py-2 pr-4"><span class="px-2 py-0.5 rounded text-xs border ${STYLES[d.status]||''}">${LABELS[d.status]||d.status}</span></td>
-            <td class="py-2 pr-4 text-xs ${d.status === 'missing_parser' ? 'text-amber-400 italic' : 'text-gray-400'}">
-              ${d.status === 'missing_parser' ? '⚠ ' + esc(suggestParser(field, d.data_sources)) : esc(d.parser_name || '—')}
+            <td class="py-2 pr-4 font-mono text-xs text-gray-200">${esc(s.source_name)}</td>
+            <td class="py-2 pr-4 text-xs text-gray-400">${(s.event_count||0).toLocaleString()}</td>
+            <td class="py-2 pr-4"><span class="px-2 py-0.5 rounded text-xs border ${STYLES[s.status]||''}">${LABELS[s.status]||s.status}</span></td>
+            <td class="py-2 pr-4 text-xs ${s.status === 'parser_needed' ? 'text-amber-400 italic' : 'text-gray-400'}">
+              ${s.status === 'parser_needed' ? '⚠ No parser loaded' : esc(s.parser) + ' (' + s.parser_fields + ' fields)'}
             </td>
-            <td class="py-2 text-xs text-gray-400">${d.rules?.length ? d.rules.map(r=>esc(r.rule)).join(', ') : '—'}</td>
+            <td class="py-2 text-xs text-gray-400">${s.rules?.length ? s.rules.map(r=>esc(r.rule)).join(', ') : '—'}</td>
           </tr>`).join('')}
         </tbody></table></div>`
 }
