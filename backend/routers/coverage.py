@@ -40,12 +40,18 @@ def _star_query_texts(rule: dict) -> list[str]:
 
 
 @router.post("/load-star-rules")
-async def load_star_rules(db: Session = Depends(get_db)):
-    """Fetch STAR rules from SentinelOne and index their fields."""
+async def load_star_rules(library_only: bool = True, db: Session = Depends(get_db)):
+    """Fetch STAR rules from SentinelOne and index their fields.
+    By default loads only Library rules (creator @sentinelone.com).
+    Pass library_only=false to include custom tenant rules as well.
+    """
     try:
         rules = await s1_client.get_star_rules()
     except Exception as e:
         raise HTTPException(502, f"S1 API error: {e}")
+
+    if library_only:
+        rules = [r for r in rules if str(r.get("creator", "")).lower().endswith("@sentinelone.com")]
 
     # Replace all existing STAR rules cleanly to avoid duplicate key errors
     db.query(ParsedRule).filter_by(rule_type="star").delete()

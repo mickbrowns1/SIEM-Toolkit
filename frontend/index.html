@@ -151,7 +151,7 @@ function renderCoverage() {
       </div>
       <div class="flex gap-2 flex-wrap justify-end">
         <button id="btn-sync" onclick="cvSyncSources()" class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white">Sync Live Sources</button>
-        <button id="btn-star" onclick="loadStar()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load STAR Rules</button>
+        <button id="btn-star" onclick="loadStar()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load Library STAR Rules</button>
         <button id="btn-sdl-parsers" onclick="loadSDLParsers()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load SDL Parsers</button>
         <button onclick="document.getElementById('f-parser').click()" class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Upload Parser</button>
         <button onclick="cvReset()" class="px-3 py-1.5 text-sm bg-red-900/60 hover:bg-red-800 rounded-lg text-red-300">Reset</button>
@@ -187,7 +187,7 @@ async function loadStar() {
   document.getElementById('cv-err').innerHTML = ''
   try { await apiPost('/api/coverage/load-star-rules', {}); cvLoad() }
   catch(e) { document.getElementById('cv-err').innerHTML = errBox(e.message) }
-  finally { setBtn('btn-star', false, 'Load STAR Rules') }
+  finally { setBtn('btn-star', false, 'Load Library STAR Rules') }
 }
 
 async function cvUploadSigma(files) {
