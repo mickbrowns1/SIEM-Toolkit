@@ -11,6 +11,11 @@ TOKEN = os.environ.get("S1_API_TOKEN", "")
 SDL_XDR_URL = os.environ.get("SDL_XDR_URL", "https://xdr.us1.sentinelone.net").rstrip("/")
 SDL_LOG_READ_KEY = os.environ.get("SDL_LOG_READ_KEY", "")
 
+# SDL Configuration Read Key — used to list/fetch parser files under /logParsers/
+# (separate from SDL_LOG_READ_KEY which is for querying events only).
+# Find it in the S1 console: Settings → Integrations → Data Lake API Keys → Configuration Read.
+SDL_CONFIG_READ_KEY = os.environ.get("SDL_CONFIG_READ_KEY", "")
+
 # Management Console API uses ApiToken auth
 HEADERS = {
     "Authorization": f"ApiToken {TOKEN}",
@@ -154,8 +159,47 @@ async def run_powerquery(query: str, from_date: str, to_date: str) -> dict:
         return {"events": matches}
 
 
+def _sdl_config_headers() -> dict:
+    """Auth headers for the SDL Configuration File API (uses POST /api/listFiles,
+    POST /api/getFile, etc.). Falls back to SDL_LOG_READ_KEY if no dedicated
+    Configuration Read key is set — that won't work for all endpoints, but lets
+    callers fail with a meaningful 401 instead of crashing."""
+    key = SDL_CONFIG_READ_KEY or SDL_LOG_READ_KEY
+    return {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+
+
 async def list_sdl_parsers() -> list[str]:
-    """List all parser filenames under /logParsers/ in SDL."""
+    """List parser paths under /logParsers/ via the SDL Configuration File API.
+
+    Requires SDL_CONFIG_READ_KEY (or higher) in .env. The endpoint is
+    POST <SDL_XDR_URL>/api/listFiles with {"pathPrefix": "/logParsers/"}.
+    Returns names without the /logParsers/ prefix, suitable for use as
+    filenames in the local parsers/ directory.
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{SDL_XDR_URL}/api/listFiles",
+            headers=_sdl_config_headers(),
+            json={"pathPrefix": "/logParsers/"},
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        paths = data.get("paths") or data.get("files") or []
+        # Normalize: strip leading /logParsers/ and ignore anything that isn't there
+        names: list[str] = []
+        for p in paths:
+            if isinstance(p, dict):
+                p = p.get("path") or p.get("name") or ""
+            if isinstance(p, str) and p.startswith("/logParsers/"):
+                names.append(p[len("/logParsers/"):])
+        return names
+
+
+async def list_sdl_parsers_legacy() -> list[str]:
+    """[Deprecated] Legacy management-console path — kept for reference but unused."""
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(
             f"{BASE_URL}/api/v1/files/logParsers",
@@ -170,11 +214,17 @@ async def list_sdl_parsers() -> list[str]:
 
 
 async def get_sdl_parser(filename: str) -> dict:
-    """Fetch a single SDL parser file by name."""
+    """Fetch a single SDL parser file by name via POST /api/getFile.
+
+    Returns the raw SDL response dict, e.g.
+    {"status": "success", "path": "/logParsers/Foo", "content": "...", "version": 3, ...}
+    """
+    path = filename if filename.startswith("/logParsers/") else f"/logParsers/{filename}"
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(
-            f"{BASE_URL}/api/v1/files/logParsers/{filename}",
-            headers=HEADERS,
+        resp = await client.post(
+            f"{SDL_XDR_URL}/api/getFile",
+            headers=_sdl_config_headers(),
+            json={"path": path},
         )
         resp.raise_for_status()
         return resp.json()

@@ -8,18 +8,68 @@ import re
 router = APIRouter()
 
 
+PARSERS_DIR = "/app/parsers"
+
+
 @router.get("/parsers")
 def list_parser_files():
     """List parser filenames available under /app/parsers/ for the Test Runner."""
-    parsers_dir = "/app/parsers"
     try:
         names = sorted(
-            e.name for e in os.scandir(parsers_dir)
+            e.name for e in os.scandir(PARSERS_DIR)
             if e.is_file() and not e.name.startswith(".")
         )
     except FileNotFoundError:
         names = []
     return {"parsers": names, "count": len(names)}
+
+
+@router.post("/sync-from-sdl")
+async def sync_parsers_from_sdl():
+    """Download every parser file under /logParsers/ on the SDL tenant into
+    /app/parsers/. After this call returns, the Parser Test Runner dropdown
+    will include all tenant parsers (including custom ones).
+
+    Requires SDL_CONFIG_READ_KEY in .env (Configuration Read scope on the
+    Data Lake API key).
+    """
+    if not s1_client.SDL_CONFIG_READ_KEY:
+        raise HTTPException(
+            400,
+            "SDL_CONFIG_READ_KEY is not set in .env. Generate a Data Lake API key "
+            "with 'Configuration Read' scope in the S1 console and add it to .env."
+        )
+
+    try:
+        names = await s1_client.list_sdl_parsers()
+    except Exception as e:
+        raise HTTPException(502, f"SDL listFiles failed: {e}")
+
+    os.makedirs(PARSERS_DIR, exist_ok=True)
+    downloaded: list[str] = []
+    errors: list[dict] = []
+
+    for name in names:
+        # The path on SDL is /logParsers/<name>; we write to /app/parsers/<sanitized-name>.
+        safe_name = name.replace("/", "_")
+        try:
+            resp = await s1_client.get_sdl_parser(name)
+            content = resp.get("content")
+            if content is None:
+                errors.append({"parser": name, "error": "no content field in response"})
+                continue
+            with open(os.path.join(PARSERS_DIR, safe_name), "w", encoding="utf-8") as fh:
+                fh.write(content)
+            downloaded.append(safe_name)
+        except Exception as e:
+            errors.append({"parser": name, "error": str(e) or e.__class__.__name__})
+
+    return {
+        "downloaded": len(downloaded),
+        "parsers": downloaded,
+        "errors": errors,
+        "directory": PARSERS_DIR,
+    }
 
 
 def _date_range_hours(hours: int) -> tuple[str, str]:

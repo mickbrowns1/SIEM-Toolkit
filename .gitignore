@@ -8,3 +8,6 @@ frontend/out/
 pgdata/
 parsers/*.json
 data/
+
+parsers/*
+!parsers/.gitkeep

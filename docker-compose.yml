@@ -15,6 +15,7 @@ services:
       - S1_BASE_URL=${S1_BASE_URL}
       - SDL_XDR_URL=${SDL_XDR_URL}
       - SDL_LOG_READ_KEY=${SDL_LOG_READ_KEY}
+      - SDL_CONFIG_READ_KEY=${SDL_CONFIG_READ_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DATABASE_URL=postgresql://siem:siem@db:5432/siem
       - DETECTIONS_FILE=/app/data/detections.json
