@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy to sdl_config.json (or set $SDL_CONFIG to its path). Only the keys you need are required. log_read_key for queries; config_read_key for listFiles/getFile (parser sync).",
+  "base_url": "https://xdr.us1.sentinelone.net",
+  "log_read_key":     "REPLACE_WITH_LOG_READ_KEY",
+  "config_read_key":  "REPLACE_WITH_CONFIG_READ_KEY",
+  "console_api_token": "REPLACE_WITH_CONSOLE_API_TOKEN_OR_LEAVE_BLANK"
+}
