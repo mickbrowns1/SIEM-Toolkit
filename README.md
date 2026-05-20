@@ -10,6 +10,7 @@ A self-hosted troubleshooting and visibility tool for SentinelOne AI-SIEM SecOps
 
 | Page | Purpose |
 |---|---|
+| **Overview** | Live health stats — coverage percentage, active sources, top uncovered sources by volume |
 | **Parser Coverage Map** | Which active data sources have a parser? Which don't? |
 | **Ingest Dashboard** | Event volume, top sources, cost projection, filter simulator |
 | **Parser Quality** | Live event sampler, field population rate, parser test runner |
@@ -26,12 +27,12 @@ browser → nginx (port 3001) → single-page HTML/JS application
           FastAPI backend (port 8001)
                 ↓
     ┌───────────────────────────┐
-    │  PostgreSQL (SQLAlchemy)  │  parsed rules, parser fields, active sources
+    │  PostgreSQL (SQLAlchemy)  │  parser fields, active sources
     └───────────────────────────┘
                 ↓
     ┌───────────────────────────┐
     │  SentinelOne APIs         │
-    │  • Management API (STAR)  │  demo.sentinelone.net
+    │  • Management API         │  demo.sentinelone.net
     │  • Scalyr XDR PowerQuery  │  xdr.us1.sentinelone.net
     └───────────────────────────┘
 ```
@@ -54,16 +55,34 @@ Edit `.env` with your credentials:
 
 ```env
 S1_BASE_URL=https://demo.sentinelone.net       # Your console URL
-S1_API_TOKEN=eyJ...                             # Service user API token
+S1_API_TOKEN=eyJ...                             # Service user API token (account scope or higher)
 SDL_XDR_URL=https://xdr.us1.sentinelone.net    # Scalyr XDR endpoint
 SDL_LOG_READ_KEY=1j2IU0S...                     # Data Lake read key
-ANTHROPIC_API_KEY=                              # Optional — Onboarding page only
+ANTHROPIC_API_KEY=                              # Optional — not currently used
 ```
 
-**S1_API_TOKEN** — generate at *Settings → Users → Service Users* in the console.  
+**S1_API_TOKEN** — generate at *Settings → Users → Service Users* in the console. The service user should be provisioned at **account scope** or higher.  
 **SDL_LOG_READ_KEY** — found at *Settings → Integrations → Data Lake API Keys*.
 
-### 2. Add Parser Files (optional but strongly recommended)
+### 2. Add the Detection Library (strongly recommended)
+
+The Detection Fields Missing column and per-source detection counts on the Coverage Map require a local detections export. This is generated from the [detection-validator](https://github.com/mickbrowns1/detection-validator) repository.
+
+```bash
+# Clone the detection-validator repo alongside this one
+git clone https://github.com/mickbrowns1/detection-validator.git
+cd detection-validator
+
+# Follow its README to generate the export, then copy the output here:
+mkdir -p ../SIEM-Toolkit/data
+cp data/data/detections/extracted.json ../SIEM-Toolkit/data/detections.json
+
+cd ../SIEM-Toolkit
+```
+
+The `data/` directory is gitignored and never committed. Once the stack is running, click **Load Detections** on the Coverage Map to import the rules into the database.
+
+### 3. Add Parser Files (optional but strongly recommended)
 
 Place your SDL parser JSON files into the `parsers/` directory. The backend reads them directly at query time — no rebuild is necessary.
 
@@ -71,7 +90,7 @@ Place your SDL parser JSON files into the `parsers/` directory. The backend read
 cp ~/my-parsers/*.json parsers/
 ```
 
-### 3. Start the Stack
+### 4. Start the Stack
 
 ```bash
 docker-compose up -d --build
@@ -83,6 +102,18 @@ Open **http://localhost:3001** in your browser and you're off.
 
 ## Features
 
+### Overview Dashboard
+
+The landing page gives you an at-a-glance health summary drawn live from the database:
+
+- **Parser Coverage %** — proportion of active sources with a confirmed parser
+- **Active Sources** — total number of `dataSource.name` values seen in the last 7 days
+- **Covered / Need Parser** — counts for each status
+
+If any sources are uncovered, the **Top Sources Needing a Parser** table lists the highest-volume offenders. Click any source name to jump directly to the Parser Quality page with that source pre-selected.
+
+---
+
 ### Parser Coverage Map
 
 Answers the question: *does each active data source have a parser running?*
@@ -91,7 +122,6 @@ Answers the question: *does each active data source have a parser running?*
 
 1. **Sync Live Sources** — executes a PowerQuery against your data lake to retrieve every `dataSource.name` seen in the last 7 days, along with event counts.
 2. **Load SDL Parsers** — reads parser files from `parsers/`, extracts the `dataSource.name` attribute from each, and stores the field list in the database.
-3. **Load STAR Rules** — retrieves your STAR detection rules from the management API and indexes which data sources each rule references.
 
 **Matching logic (three-tier):**
 1. Exact `dataSource.name` match between the active source and the parser attribute
@@ -103,6 +133,10 @@ Answers the question: *does each active data source have a parser running?*
 **Status values:**
 - 🟢 **Covered** — custom parser confirmed (local file or detected via parsed events in the data lake)
 - 🔴 **Parser Needed** — no parser found, or only a grok/dottedJson format (which typically indicates an incomplete parser)
+
+**Filters:** Use the filter pills to focus on Custom Parser only, Default Parser Only (data lake detected), or No Parser.
+
+**Deep link:** Click any source name in the table to open it directly in Parser Quality with all dropdowns pre-populated.
 
 **Expected results:** After syncing sources and loading parsers, sources with active SDL parsers will appear as Covered. Sources sending raw, unparsed data — where only `message` and `timestamp` appear in the data lake — will appear as Parser Needed.
 
@@ -173,8 +207,7 @@ A prompt template for using Claude Code to onboard a new log source. Copy the te
 
 - An SDL parser skeleton in augmented-JSON format
 - Field mappings to the SDL common schema
-- 2–3 starter STAR detection rules
-- 5 parser test assertions
+- Parser test assertions
 
 No Anthropic API key is required — this uses Claude Code directly from your terminal.
 
@@ -222,7 +255,7 @@ curl -X DELETE http://localhost:8001/api/coverage/reset
 │   │   └── settings.py          # .env read/write
 │   └── services/
 │       ├── s1_client.py         # SentinelOne + Scalyr API client
-│       └── rule_parser.py       # SDL/Sigma/STAR field extraction
+│       └── rule_parser.py       # SDL format string field extraction
 ├── frontend/
 │   └── index.html               # Single-page application (Tailwind, vanilla JS)
 ├── parsers/                     # SDL parser files (volume-mounted)
@@ -240,3 +273,4 @@ curl -X DELETE http://localhost:8001/api/coverage/reset
 - The backend queries your **demo tenant** (`demo.sentinelone.net`) — not usea1-purple or any other tenant. Ensure your `S1_BASE_URL` and `SDL_LOG_READ_KEY` are pointed at the same tenant.
 - Parser files in `parsers/` are read at query time, not on startup — add or update files at any point without rebuilding the image.
 - The filter simulator is entirely read-only and makes no changes whatsoever to your tenant configuration.
+- The service user API token must be at **account scope** or higher. Site-scoped tokens will have limited visibility into rules and may see reduced source counts.

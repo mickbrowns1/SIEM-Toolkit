@@ -15,9 +15,6 @@ FIELDS = [
     {"key": "SDL_XDR_URL",          "label": "SDL XDR URL",                   "secret": False, "placeholder": "https://xdr.us1.sentinelone.net"},
     {"key": "SDL_LOG_READ_KEY",     "label": "SDL Log Read Key",              "secret": True,  "placeholder": "1DnK0Y4e..."},
     {"key": "ANTHROPIC_API_KEY",    "label": "Anthropic API Key",             "secret": True,  "placeholder": "sk-ant-..."},
-    {"key": "STAR_LIBRARY_ONLY",    "label": "STAR Rules — Library Only",     "secret": False, "placeholder": "true",
-     "type": "select", "options": ["true", "false"],
-     "hint": "true = load only SentinelOne Library rules (@sentinelone.com creators). false = include custom tenant rules as well."},
 ]
 
 FIELD_KEYS = {f["key"] for f in FIELDS}

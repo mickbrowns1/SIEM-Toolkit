@@ -116,17 +116,98 @@ function barChart(rows, labelKey, valueKey) {
 
 function renderHome() {
   set(`<div class="p-8 max-w-5xl">
-    <div class="mb-8">
+    <div class="mb-6">
       <h1 class="text-2xl font-bold text-white">SIEM Engineering Toolkit</h1>
       <p class="text-gray-400 mt-1">SentinelOne AI-SIEM · demo.sentinelone.net</p>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-      ${homeCard('#/coverage','Parser Coverage Map','Cross-reference SDL parser fields against STAR and Sigma rule fields. Surface parsed-but-unused fields as reduction candidates.','Open Coverage Map','from-purple-700 to-purple-900')}
-      ${homeCard('#/ingest','Ingest Dashboard','Visualize event volume by source and type. Project monthly GB costs and simulate exclusion filters before applying them.','Open Dashboard','from-blue-700 to-blue-900')}
-      ${homeCard('#/quality','Parser Quality','Sample live events to see which fields landed. Measure field population rates and test parser patterns against raw log lines.','Open Quality Tools','from-amber-700 to-amber-900')}
-      ${homeCard('#/onboarding','Onboarding Accelerator','Step-by-step guide for onboarding a new log source using Claude Code directly — no API key required.','View Guide','from-emerald-700 to-emerald-900')}
+    <div id="home-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center animate-pulse">
+        <div class="h-7 w-16 bg-gray-800 rounded mx-auto mb-1"></div>
+        <div class="h-3 w-20 bg-gray-800 rounded mx-auto"></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center animate-pulse">
+        <div class="h-7 w-16 bg-gray-800 rounded mx-auto mb-1"></div>
+        <div class="h-3 w-20 bg-gray-800 rounded mx-auto"></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center animate-pulse">
+        <div class="h-7 w-16 bg-gray-800 rounded mx-auto mb-1"></div>
+        <div class="h-3 w-20 bg-gray-800 rounded mx-auto"></div>
+      </div>
+      <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center animate-pulse">
+        <div class="h-7 w-16 bg-gray-800 rounded mx-auto mb-1"></div>
+        <div class="h-3 w-20 bg-gray-800 rounded mx-auto"></div>
+      </div>
+    </div>
+    <div id="home-uncovered" class="hidden mb-8"></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      ${homeCard('#/coverage','Parser Coverage Map','See which active data sources have a parser running and which need one.','Open Coverage Map','from-purple-700 to-purple-900')}
+      ${homeCard('#/ingest','Ingest Dashboard','Visualize event volume by source and type. Simulate exclusion filters before applying them.','Open Dashboard','from-blue-700 to-blue-900')}
+      ${homeCard('#/quality','Parser Quality','Sample live events, measure field population rates, and test parser patterns against raw log lines.','Open Quality Tools','from-amber-700 to-amber-900')}
+      ${homeCard('#/onboarding','Onboarding Accelerator','Step-by-step guide for onboarding a new log source using Claude Code directly.','View Guide','from-emerald-700 to-emerald-900')}
     </div>
   </div>`)
+  homeLoadStats()
+}
+
+async function homeLoadStats() {
+  try {
+    const r = await apiGet('/api/coverage/map')
+    const sources = r.sources || []
+    const total = sources.length
+    const covered = sources.filter(s => s.status === 'covered').length
+    const needed = sources.filter(s => s.status === 'parser_needed').length
+    const pct = total ? Math.round(covered / total * 100) : 0
+    const pctColor = pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'
+
+    document.getElementById('home-stats').innerHTML = `
+      ${homeStat(pct + '%', 'Parser Coverage', pctColor)}
+      ${homeStat(total.toLocaleString(), 'Active Sources', 'text-blue-400')}
+      ${homeStat(covered.toLocaleString(), 'Covered', 'text-emerald-400')}
+      ${homeStat(needed.toLocaleString(), 'Need Parser', needed > 0 ? 'text-red-400' : 'text-gray-500')}`
+
+    // Top uncovered sources by volume
+    const uncovered = sources
+      .filter(s => s.status === 'parser_needed')
+      .sort((a, b) => (b.event_count || 0) - (a.event_count || 0))
+      .slice(0, 5)
+
+    if (uncovered.length) {
+      const rows = uncovered.map(s => `
+        <tr class="border-b border-gray-800/50">
+          <td class="py-2 pr-4 font-mono text-xs text-gray-200">
+            <a href="#/quality" onclick="queueQualitySource('${esc(s.source_name)}')" class="hover:text-purple-400 cursor-pointer">${esc(s.source_name)}</a>
+          </td>
+          <td class="py-2 text-xs text-gray-400">${(s.event_count || 0).toLocaleString()} events</td>
+        </tr>`).join('')
+
+      document.getElementById('home-uncovered').classList.remove('hidden')
+      document.getElementById('home-uncovered').innerHTML = `
+        <div class="bg-gray-900 border border-red-900/40 rounded-xl p-5">
+          <h2 class="text-sm font-semibold text-white mb-1">Top Sources Needing a Parser</h2>
+          <p class="text-xs text-gray-500 mb-3">Highest-volume sources with no parser running — click to inspect in Parser Quality.</p>
+          <table class="w-full">
+            <thead><tr class="text-left text-gray-500 border-b border-gray-800">
+              <th class="pb-2 pr-4 text-xs font-medium">Source</th>
+              <th class="pb-2 text-xs font-medium">Volume</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`
+    }
+  } catch(e) {
+    document.getElementById('home-stats').innerHTML = `
+      ${homeStat('—', 'Parser Coverage', 'text-gray-600')}
+      ${homeStat('—', 'Active Sources', 'text-gray-600')}
+      ${homeStat('—', 'Covered', 'text-gray-600')}
+      ${homeStat('—', 'Need Parser', 'text-gray-600')}`
+  }
+}
+
+function homeStat(value, label, valueClass) {
+  return `<div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+    <div class="text-2xl font-bold ${valueClass} mb-1">${value}</div>
+    <div class="text-xs text-gray-500">${label}</div>
+  </div>`
 }
 
 function homeCard(href, title, desc, cta, grad) {
@@ -136,6 +217,12 @@ function homeCard(href, title, desc, cta, grad) {
     <p class="text-sm text-gray-400 mt-1 leading-relaxed">${esc(desc)}</p></div>
     <a href="${href}" class="mt-auto text-sm text-purple-400 hover:text-purple-300 font-medium">${esc(cta)} →</a>
   </div>`
+}
+
+// Queue a source to be pre-selected when Quality page loads
+let _pendingQualitySource = null
+function queueQualitySource(source) {
+  _pendingQualitySource = source
 }
 
 // ── Coverage ──────────────────────────────────────────────────────────────
@@ -151,7 +238,7 @@ function renderCoverage() {
       </div>
       <div class="flex gap-2 flex-wrap justify-end">
         <button id="btn-sync" onclick="cvSyncSources()" class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white">Sync Live Sources</button>
-        <button id="btn-star" onclick="loadStar()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load Library STAR Rules</button>
+        <button id="btn-sync-library" onclick="syncLibrary()" class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white">Sync Detection Library</button>
         <button id="btn-sdl-parsers" onclick="loadSDLParsers()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white">Load SDL Parsers</button>
         <button onclick="document.getElementById('f-parser').click()" class="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 rounded-lg text-white">Upload Parser</button>
         <button onclick="cvReset()" class="px-3 py-1.5 text-sm bg-red-900/60 hover:bg-red-800 rounded-lg text-red-300">Reset</button>
@@ -166,28 +253,51 @@ function renderCoverage() {
   cvLoad()
 }
 
-async function loadSDLParsers() {
-  setBtn('btn-sdl-parsers', true)
-  document.getElementById('cv-err').innerHTML = ''
+async function syncLibrary() {
+  setBtn('btn-sync-library', true)
+  const errEl = document.getElementById('cv-err')
+  if (errEl) errEl.innerHTML = ''
   try {
-    const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
-    if (res.errors?.length) {
-      document.getElementById('cv-err').innerHTML = errBox(`${res.errors.length} parser(s) failed to load: ${res.errors.map(e=>e.parser).join(', ')}`)
+    const r = await apiPost('/api/coverage/load-detections', {})
+    if (errEl) {
+      errEl.innerHTML = `<div class="p-3 bg-emerald-900/40 border border-emerald-700 rounded-lg text-sm text-emerald-300 mb-4">✓ ${r.loaded} detection rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`
+      setTimeout(() => { errEl.innerHTML = '' }, 4000)
     }
     cvLoad()
   } catch(e) {
-    document.getElementById('cv-err').innerHTML = errBox(e.message)
+    if (errEl) errEl.innerHTML = errBox(e.message)
+  } finally { setBtn('btn-sync-library', false, 'Sync Detection Library') }
+}
+
+async function loadSDLParsers() {
+  setBtn('btn-sdl-parsers', true)
+  const errEl = document.getElementById('cv-err')
+  if (errEl) errEl.innerHTML = ''
+  try {
+    const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
+    let msg = `✓ ${res.loaded} parser${res.loaded !== 1 ? 's' : ''} loaded`
+    if (res.errors?.length) {
+      msg += ` — ${res.errors.length} failed: ${res.errors.map(e=>e.parser).join(', ')}`
+      if (errEl) errEl.innerHTML = errBox(msg)
+    } else {
+      if (errEl) errEl.innerHTML = `<div class="p-3 bg-emerald-900/40 border border-emerald-700 rounded-lg text-sm text-emerald-300 mb-4">${msg}</div>`
+      setTimeout(() => { if (errEl) errEl.innerHTML = '' }, 4000)
+    }
+    cvLoad()
+  } catch(e) {
+    if (errEl) errEl.innerHTML = errBox(e.message)
   } finally {
     setBtn('btn-sdl-parsers', false, 'Load SDL Parsers')
   }
 }
 
-async function loadStar() {
-  setBtn('btn-star', true)
-  document.getElementById('cv-err').innerHTML = ''
-  try { await apiPost('/api/coverage/load-star-rules', {}); cvLoad() }
-  catch(e) { document.getElementById('cv-err').innerHTML = errBox(e.message) }
-  finally { setBtn('btn-star', false, 'Load Library STAR Rules') }
+
+function cvToggleMissing(id) {
+  const el = document.getElementById(id)
+  const chevron = document.getElementById(id + '-chevron')
+  if (!el) return
+  const open = el.classList.toggle('hidden')
+  if (chevron) chevron.textContent = open ? '▶' : '▼'
 }
 
 async function cvUploadSigma(files) {
@@ -236,7 +346,7 @@ async function cvLoad() {
       document.getElementById('cv-table').innerHTML = `
         <div class="bg-gray-900/50 border border-gray-800 rounded-lg p-6 text-center text-sm text-gray-500">
           <p class="mb-2">No active sources synced yet.</p>
-          <p>Click <strong class="text-gray-300">Sync Live Sources</strong> to pull current dataSource.names from the data lake, then <strong class="text-gray-300">Load STAR Rules</strong> and <strong class="text-gray-300">Load SDL Parsers</strong> to see coverage.</p>
+          <p>Click <strong class="text-gray-300">Sync Live Sources</strong> to pull current dataSource.names from the data lake, then <strong class="text-gray-300">Load SDL Parsers</strong> to see coverage.</p>
         </div>`
       return
     }
@@ -286,24 +396,39 @@ function cvSetFilter(f) {
         ? `<span class="text-emerald-600 text-xs">✓ All fields covered</span>`
         : `<span class="text-gray-700 text-xs">—</span>`
     }
+    const id = 'mf-' + s.source_name.replace(/[^a-z0-9]/gi, '_')
     const chips = s.missing_fields.map(f =>
       `<span class="px-1.5 py-0.5 bg-red-900/40 border border-red-800/60 rounded text-xs font-mono text-red-300">${esc(f)}</span>`
     ).join(' ')
-    return `<div class="flex flex-wrap gap-1">${chips}</div>`
+    return `<div>
+      <button onclick="cvToggleMissing('${id}')"
+        class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
+        <span class="px-1.5 py-0.5 bg-red-900/40 border border-red-800/60 rounded font-semibold">${s.missing_fields.length}</span>
+        <span>field${s.missing_fields.length !== 1 ? 's' : ''} missing</span>
+        <span id="${id}-chevron" class="text-gray-600">▶</span>
+      </button>
+      <div id="${id}" class="hidden mt-1.5 flex flex-wrap gap-1">${chips}</div>
+    </div>`
+  }
+
+  function detectionsCell(s) {
+    if (s.rule_count) {
+      return `<span class="text-purple-400 font-medium">${s.rule_count}</span> rule${s.rule_count !== 1 ? 's' : ''}`
+    }
+    if (s.close_matches && s.close_matches.length) {
+      const hints = s.close_matches.map(m =>
+        `<span class="text-amber-400">${esc(m.library_name)}</span> <span class="text-gray-600">(${m.rule_count} rules)</span>`
+      ).join(', ')
+      return `<span class="text-gray-700">—</span> <span class="text-amber-600 text-xs" title="dataSource.name mismatch?">⚠ similar: ${hints}</span>`
+    }
+    return `<span class="text-gray-700">—</span>`
   }
 
   function parserCell(s) {
     if (s.status === 'covered') {
-      if (s.parser === 'detected in data') {
-        return `<span class="text-emerald-400">✓ Parsed <span class="text-emerald-700">(${(s.parser_detected||0).toLocaleString()} typed events detected)</span></span>`
-      }
-      const detail = s.parser_fields ? ` (${s.parser_fields} fields)` : ''
-      return `<span class="text-gray-400">${esc(s.parser)}${detail}</span>`
+      return `<span class="text-emerald-400 font-medium">✓ Parsed</span>`
     }
-    if (s.parser && s.format_type && s.format_type !== 'custom') {
-      return `<span class="text-amber-400 italic">⚠ ${esc(s.parser)} <span class="text-amber-600">(${esc(s.format_type)} — needs custom parser)</span></span>`
-    }
-    return `<span class="text-red-400 italic">⚠ No parser loaded</span>`
+    return `<span class="text-red-400 font-medium">✗ Not Parsed</span>`
   }
 
   document.getElementById('cv-table').innerHTML = sources.length === 0
@@ -314,16 +439,20 @@ function cvSetFilter(f) {
           <th class="pb-2 pr-4 font-medium">Events (7d)</th>
           <th class="pb-2 pr-4 font-medium">Status</th>
           <th class="pb-2 pr-4 font-medium">Parser</th>
-          <th class="pb-2 pr-4 font-medium">STAR Rules</th>
-          <th class="pb-2 font-medium">Detection Fields Missing</th>
+          <th class="pb-2 pr-4 font-medium">Detections</th>
+          <th class="pb-2 font-medium">Fields Missing</th>
         </tr></thead>
         <tbody>${sources.map(s => `
           <tr class="border-b border-gray-800/50 hover:bg-gray-900/30">
-            <td class="py-2 pr-4 font-mono text-xs text-gray-200">${esc(s.source_name)}</td>
+            <td class="py-2 pr-4 font-mono text-xs">
+              <a href="#/quality" onclick="queueQualitySource('${esc(s.source_name)}')"
+                class="text-gray-200 hover:text-purple-400 cursor-pointer transition-colors"
+                title="Open in Parser Quality">${esc(s.source_name)}</a>
+            </td>
             <td class="py-2 pr-4 text-xs text-gray-400">${(s.event_count||0).toLocaleString()}</td>
             <td class="py-2 pr-4"><span class="px-2 py-0.5 rounded text-xs border ${STYLES[s.status]||''}">${LABELS[s.status]||s.status}</span></td>
             <td class="py-2 pr-4 text-xs">${parserCell(s)}</td>
-            <td class="py-2 pr-4 text-xs text-gray-400">${s.rules?.length ? s.rules.map(r=>esc(r.rule)).join(', ') : '—'}</td>
+            <td class="py-2 pr-4 text-xs text-gray-400">${detectionsCell(s)}</td>
             <td class="py-2 text-xs">${missingFieldsCell(s)}</td>
           </tr>`).join('')}
         </tbody></table></div>`
@@ -749,7 +878,17 @@ function renderQuality() {
       <div id="qt-result"></div>
     </div>
   </div>`)
-  qtLoadParsers()
+  qtLoadParsers().then(() => {
+    // Pre-select source if navigated from Coverage Map or Overview
+    if (_pendingQualitySource) {
+      const src = _pendingQualitySource
+      _pendingQualitySource = null
+      const qsSel = document.getElementById('qs-source')
+      const qpSel = document.getElementById('qp-source')
+      if (qsSel) qsSel.value = src
+      if (qpSel) { qpSel.value = src; qpDiscoverFields() }
+    }
+  })
 }
 
 // ── Live Event Sampler ─────────────────────────────────────────────────────

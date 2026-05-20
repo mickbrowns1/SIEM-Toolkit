@@ -17,12 +17,14 @@ services:
       - SDL_LOG_READ_KEY=${SDL_LOG_READ_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DATABASE_URL=postgresql://siem:siem@db:5432/siem
+      - DETECTIONS_FILE=/app/data/detections.json
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./parsers:/app/parsers
       - ./.env:/app/.env
+      - ./data:/app/data:ro
 
   db:
     image: postgres:16-alpine

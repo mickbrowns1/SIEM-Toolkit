@@ -7,3 +7,4 @@ node_modules/
 frontend/out/
 pgdata/
 parsers/*.json
+data/

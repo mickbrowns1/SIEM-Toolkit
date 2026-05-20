@@ -24,16 +24,72 @@ def _iso_to_epoch_ms(iso_str: str) -> int:
     return int(dt.timestamp() * 1000)
 
 
-async def get_star_rules(limit: int = 200) -> list:
-    """Fetch active STAR rules from the Management Console API."""
+async def get_star_rules(page_size: int = 100) -> list:
+    """Fetch custom STAR rules from /cloud-detection/rules, paginating via cursor."""
+    all_rules = []
+    cursor = None
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(
-            f"{BASE_URL}/web/api/v2.1/cloud-detection/rules",
-            headers=HEADERS,
-            params={"limit": limit},
-        )
-        resp.raise_for_status()
-        return resp.json().get("data", [])
+        while True:
+            params = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+            resp = await client.get(
+                f"{BASE_URL}/web/api/v2.1/cloud-detection/rules",
+                headers=HEADERS,
+                params=params,
+            )
+            resp.raise_for_status()
+            body = resp.json()
+            all_rules.extend(body.get("data", []))
+            cursor = body.get("pagination", {}).get("nextCursor")
+            if not cursor:
+                break
+    return all_rules
+
+
+async def get_library_rules(page_size: int = 100) -> list:
+    """
+    Fetch Detection Library (OOTB/Platform) rules from /web/api/v2.1/detection-library/rules.
+    Requires an account-level or higher API token — site-scoped tokens will receive a 400.
+    Returns an empty list gracefully if the token lacks sufficient scope.
+    """
+    all_rules = []
+    cursor = None
+    async with httpx.AsyncClient(timeout=60) as client:
+        while True:
+            params: dict = {"limit": page_size}
+            if cursor:
+                params["cursor"] = cursor
+            resp = await client.get(
+                f"{BASE_URL}/web/api/v2.1/detection-library/rules",
+                headers=HEADERS,
+                params=params,
+            )
+            # 400 typically means site-scoped token — return empty rather than crash
+            if resp.status_code == 400:
+                return []
+            resp.raise_for_status()
+            body = resp.json()
+            batch = body.get("data", [])
+            all_rules.extend(batch)
+            cursor = body.get("pagination", {}).get("nextCursor")
+            if not cursor:
+                break
+
+    results = []
+    for rule in all_rules:
+        results.append({
+            "id": str(rule.get("id", "")),
+            "name": rule.get("name", "unnamed"),
+            "s1ql": rule.get("s1ql") or rule.get("query", ""),
+            "queryType": rule.get("queryType", "events"),
+            "severity": rule.get("severity", ""),
+            "description": rule.get("description", ""),
+            "gdlRuleId": rule.get("id", ""),
+            "creator": "SentinelOne",
+            "expirationMode": rule.get("expirationMode", "Permanent"),
+        })
+    return results
 
 
 async def run_powerquery(query: str, from_date: str, to_date: str) -> dict:
@@ -122,6 +178,55 @@ async def get_sdl_parser(filename: str) -> dict:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+async def get_account_id() -> str | None:
+    """Return the first account ID visible to the current token."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(
+            f"{BASE_URL}/web/api/v2.1/accounts",
+            headers=HEADERS,
+            params={"limit": 1},
+        )
+        resp.raise_for_status()
+        accounts = resp.json().get("data", [])
+        return str(accounts[0]["id"]) if accounts else None
+
+
+async def get_platform_rules(page_size: int = 1000) -> list:
+    """
+    Fetch all Detection Library platform rules from /detection-library/platform-rules.
+    Requires scopeLevel + scopeId — uses account scope with the first visible account.
+    Returns list of rules, each with a 'sources' list (authoritative data source names).
+    """
+    account_id = await get_account_id()
+    if not account_id:
+        return []
+
+    all_rules: list = []
+    cursor: str = ""
+    async with httpx.AsyncClient(timeout=60) as client:
+        while True:
+            params: dict = {
+                "scopeLevel": "account",
+                "scopeId": account_id,
+                "limit": page_size,
+                "cursor": cursor,
+            }
+            resp = await client.get(
+                f"{BASE_URL}/web/api/v2.1/detection-library/platform-rules",
+                headers=HEADERS,
+                params=params,
+            )
+            if resp.status_code == 400:
+                return []
+            resp.raise_for_status()
+            body = resp.json()
+            all_rules.extend(body.get("data", []))
+            cursor = body.get("pagination", {}).get("nextCursor") or ""
+            if not cursor:
+                break
+    return all_rules
 
 
 async def get_sites() -> list:
