@@ -11,12 +11,6 @@ TOKEN = os.environ.get("S1_API_TOKEN", "")
 SDL_XDR_URL = os.environ.get("SDL_XDR_URL", "https://xdr.us1.sentinelone.net").rstrip("/")
 SDL_LOG_READ_KEY = os.environ.get("SDL_LOG_READ_KEY", "")
 
-# PowerQuery timeout (seconds). Grouped queries on busy tenants can take
-# 2-5 minutes; default 600s, override via SDL_PQ_TIMEOUT env.
-SDL_PQ_TIMEOUT = float(os.environ.get("SDL_PQ_TIMEOUT", "600"))
-# How many times to retry on a ReadTimeout. Default 1 (so a single retry).
-SDL_PQ_TIMEOUT_RETRIES = int(os.environ.get("SDL_PQ_TIMEOUT_RETRIES", "1"))
-
 # Management Console API uses ApiToken auth
 HEADERS = {
     "Authorization": f"ApiToken {TOKEN}",
@@ -118,11 +112,8 @@ async def run_powerquery(query: str, from_date: str, to_date: str) -> dict:
         "maxCount": 1000,
     }
 
-    timeout_cfg = httpx.Timeout(SDL_PQ_TIMEOUT, connect=15.0)
-    max_attempts = 3 + SDL_PQ_TIMEOUT_RETRIES  # 3 for 429 retries + N for ReadTimeout
-    async with httpx.AsyncClient(timeout=timeout_cfg) as client:
-        last_err: Exception | None = None
-        for attempt in range(max_attempts):
+    async with httpx.AsyncClient(timeout=120) as client:
+        for attempt in range(3):
             try:
                 resp = await client.post(
                     f"{SDL_XDR_URL}/api/powerQuery",
@@ -134,40 +125,16 @@ async def run_powerquery(query: str, from_date: str, to_date: str) -> dict:
                 if e.response.status_code == 429 and attempt < 2:
                     await asyncio.sleep(10 * (attempt + 1))
                     continue
-                body = (e.response.text or "<empty body>")[:500]
                 raise RuntimeError(
-                    f"HTTP {e.response.status_code} from {e.request.url}: {body}"
-                ) from e
-            except httpx.ReadTimeout as e:
-                last_err = e
-                if attempt < max_attempts - 1:
-                    await asyncio.sleep(2 * (attempt + 1))
-                    continue
-                raise RuntimeError(
-                    f"ReadTimeout after {SDL_PQ_TIMEOUT}s talking to "
-                    f"{SDL_XDR_URL}/api/powerQuery (attempts={attempt + 1}). "
-                    f"Try a shorter time window or raise SDL_PQ_TIMEOUT in .env. "
-                    f"Query was: {query[:200]}"
-                ) from e
-            except httpx.RequestError as e:
-                raise RuntimeError(
-                    f"network error talking to {SDL_XDR_URL}/api/powerQuery: "
-                    f"{type(e).__name__}: {e or 'no detail'}"
+                    f"HTTP {e.response.status_code} from {e.request.url}: {e.response.text[:500]}"
                 ) from e
 
-        try:
-            data = resp.json()
-        except Exception as e:
-            return {"events": [], "error":
-                    f"non-JSON response (HTTP {resp.status_code}): "
-                    f"{(resp.text or '<empty>')[:400]}"}
-
+        data = resp.json()
         status = data.get("status", "")
 
         if status != "success":
-            # Surface the full response so callers can show a real error.
-            return {"events": [], "error":
-                    f"PowerQuery status={status or '<missing>'}: {str(data)[:400]}"}
+            # Return full response as error detail for debugging
+            return {"events": [], "error": f"PowerQuery status={status}: {str(data)[:400]}"}
 
         # Scalyr PowerQuery returns: {"status":"success","columns":[{"name":"..."},...], "values":[[...],...],...}
         raw_cols = data.get("columns", [])
@@ -214,35 +181,89 @@ async def get_sdl_parser(filename: str) -> dict:
 
 
 async def get_account_id() -> str | None:
-    """Return the first account ID visible to the current token."""
+    """Return the first account ID visible to the current token.
+
+    Tries /accounts first (works for account-scoped or higher tokens). If that
+    returns 403 (site-scoped token), falls back to /sites and reads accountId
+    from the first site.
+    """
     async with httpx.AsyncClient(timeout=15) as client:
+        # Path 1: account-scoped token
         resp = await client.get(
             f"{BASE_URL}/web/api/v2.1/accounts",
             headers=HEADERS,
             params={"limit": 1},
         )
-        resp.raise_for_status()
-        accounts = resp.json().get("data", [])
-        return str(accounts[0]["id"]) if accounts else None
+        if resp.status_code == 200:
+            accounts = resp.json().get("data", [])
+            if accounts:
+                return str(accounts[0]["id"])
+        # Path 2: site-scoped token — accountId is embedded in sites payload
+        if resp.status_code in (401, 403):
+            sresp = await client.get(
+                f"{BASE_URL}/web/api/v2.1/sites",
+                headers=HEADERS,
+                params={"limit": 1},
+            )
+            if sresp.status_code == 200:
+                data = sresp.json().get("data", {})
+                sites = data.get("sites") if isinstance(data, dict) else data
+                if sites:
+                    return str(sites[0].get("accountId") or "") or None
+        return None
+
+
+async def get_scope_for_platform_rules() -> tuple[str, str] | None:
+    """Pick the best scope for /detection-library/platform-rules.
+
+    Returns (scopeLevel, scopeId). Tries account first, then site — site-scoped
+    tokens cannot list accounts but CAN query platform-rules with site scope.
+    """
+    async with httpx.AsyncClient(timeout=15) as client:
+        # Prefer account scope (broadest)
+        a = await client.get(
+            f"{BASE_URL}/web/api/v2.1/accounts",
+            headers=HEADERS,
+            params={"limit": 1},
+        )
+        if a.status_code == 200:
+            accounts = a.json().get("data", [])
+            if accounts:
+                return ("account", str(accounts[0]["id"]))
+        # Fall back to site scope (site-scoped tokens land here)
+        s = await client.get(
+            f"{BASE_URL}/web/api/v2.1/sites",
+            headers=HEADERS,
+            params={"limit": 1},
+        )
+        if s.status_code == 200:
+            data = s.json().get("data", {})
+            sites = data.get("sites") if isinstance(data, dict) else data
+            if sites:
+                sid = sites[0].get("id")
+                if sid:
+                    return ("site", str(sid))
+        return None
 
 
 async def get_platform_rules(page_size: int = 1000) -> list:
     """
     Fetch all Detection Library platform rules from /detection-library/platform-rules.
-    Requires scopeLevel + scopeId — uses account scope with the first visible account.
-    Returns list of rules, each with a 'sources' list (authoritative data source names).
+    Requires scopeLevel + scopeId. Tries account scope first, then site scope so
+    site-scoped tokens also work.
     """
-    account_id = await get_account_id()
-    if not account_id:
+    scope = await get_scope_for_platform_rules()
+    if not scope:
         return []
+    scope_level, scope_id = scope
 
     all_rules: list = []
     cursor: str = ""
     async with httpx.AsyncClient(timeout=60) as client:
         while True:
             params: dict = {
-                "scopeLevel": "account",
-                "scopeId": account_id,
+                "scopeLevel": scope_level,
+                "scopeId": scope_id,
                 "limit": page_size,
                 "cursor": cursor,
             }
