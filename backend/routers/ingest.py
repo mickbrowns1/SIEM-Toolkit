@@ -92,12 +92,15 @@ async def simulate_filter(rule: FilterRule):
 
     clauses = []
     if rule.source:
-        clauses.append(f'src.name = "{rule.source}"')
+        clauses.append(f"dataSource.name=='{rule.source}'")
     if rule.event_type:
-        clauses.append(f'event.type = "{rule.event_type}"')
+        clauses.append(f"event.type=='{rule.event_type}'")
 
-    filter_expr = " AND ".join(clauses) if clauses else "true"
-    query = f"| filter {filter_expr} | count() as events"
+    if clauses:
+        filter_expr = " and ".join(clauses)
+        query = f"| filter {filter_expr} | group events=count()"
+    else:
+        query = "| group events=count()"
 
     try:
         result = await s1_client.run_powerquery(query, from_dt, to_dt)

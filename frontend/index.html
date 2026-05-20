@@ -696,6 +696,7 @@ function renderQuality() {
           <option value="6">Last 6h</option>
           <option value="24" selected>Last 24h</option>
           <option value="72">Last 3d</option>
+          <option value="168">Last 7d</option>
         </select>
         <select id="qs-limit" class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-600">
           <option value="10" selected>10 events</option>
@@ -721,6 +722,7 @@ function renderQuality() {
           <option value="6">Last 6h</option>
           <option value="24" selected>Last 24h</option>
           <option value="72">Last 3d</option>
+          <option value="168">Last 7d</option>
         </select>
         <button onclick="qpAnalyze()" id="btn-qp"
           class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white transition-colors">Analyze</button>
@@ -911,12 +913,21 @@ async function qtLoadParsers() {
     if (qsSel) qsSel.innerHTML = sourcePlaceholder + sourceOptions
     if (qpSel) qpSel.innerHTML = sourcePlaceholder + sourceOptions
 
-    // Populate parser dropdown
+    // Populate parser dropdown from /app/parsers/ directory (not from coverage map)
     const qtSel = document.getElementById('qt-parser')
     if (qtSel) {
-      parserNames.forEach(n => {
-        const o = document.createElement('option'); o.value = n; o.textContent = n; qtSel.appendChild(o)
-      })
+      try {
+        const p = await apiGet('/api/quality/parsers')
+        qtSel.innerHTML = '<option value="">— select parser —</option>'
+        ;(p.parsers || []).forEach(n => {
+          const o = document.createElement('option'); o.value = n; o.textContent = n; qtSel.appendChild(o)
+        })
+        if (!p.parsers || p.parsers.length === 0) {
+          qtSel.innerHTML = '<option value="">— no parser files in /app/parsers — drop JSON files there or click "Load SDL Parsers" —</option>'
+        }
+      } catch (err) {
+        qtSel.innerHTML = '<option value="">— could not load parsers: ' + esc(err.message || err) + ' —</option>'
+      }
     }
   } catch(e) {
     // If no sources synced yet, fall back to empty state with hint
@@ -940,26 +951,54 @@ async function qtTest() {
     if (!r.matched) {
       document.getElementById('qt-result').innerHTML = `
         <div class="p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg text-sm text-amber-300">
-          ⚠ No format pattern matched this log line.
-          <p class="text-xs text-amber-500 mt-1">The parser's format strings didn't produce a match. Check that the log sample matches the expected format, or that the parser has SDL format strings (some parsers use grok/dottedJson which aren't tested here).</p>
+          ⚠ ${esc(r.message || 'No format pattern matched this log line.')}
+          <p class="text-xs text-amber-500 mt-1">The parser's format strings didn't produce a match. Check that the log sample matches the expected format, or that the parser uses grok/dottedJson which aren't tested here.</p>
         </div>`
       return
     }
-    const rows = r.fields.map(f => `<tr class="border-b border-gray-800/40">
+    const extracts = (r.fields || []).filter(f => f.source !== 'rewrite')
+    const rewrites = (r.fields || []).filter(f => f.source === 'rewrite')
+    const rowsExtract = extracts.map(f => `<tr class="border-b border-gray-800/40">
       <td class="py-1.5 pr-4 font-mono text-xs text-purple-300">${esc(f.field)}</td>
       <td class="py-1.5 font-mono text-xs text-gray-200">${esc(String(f.value))}</td>
     </tr>`).join('')
+    const rowsRewrite = rewrites.map(f => `<tr class="border-b border-gray-800/40">
+      <td class="py-1.5 pr-4 font-mono text-xs text-emerald-300">${esc(f.field)}</td>
+      <td class="py-1.5 font-mono text-xs text-gray-200">${esc(String(f.value))}</td>
+    </tr>`).join('')
+    const modeBadge = r.mode === 'json'
+      ? '<span class="px-2 py-0.5 ml-2 text-xs rounded bg-purple-900/60 border border-purple-700 text-purple-300">JSON auto-extract</span>'
+      : '<span class="px-2 py-0.5 ml-2 text-xs rounded bg-blue-900/60 border border-blue-700 text-blue-300">regex format</span>'
+    const counts = r.mode === 'json'
+      ? `<span class="text-gray-500">${r.extracted_count} extracted · ${r.derived_count} rewritten` +
+        (r.payload_count > 1 ? ` · showing payload ${r.showing_payload}/${r.payload_count}` : '') +
+        `</span>` : ''
+    const parseWarn = (r.parse_errors && r.parse_errors.length)
+      ? `<div class="mt-2 p-2 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-300">
+           ${r.parse_errors.length} line(s) skipped: ${r.parse_errors.slice(0,3).map(esc).join(' | ')}${r.parse_errors.length>3?' …':''}
+         </div>` : ''
     document.getElementById('qt-result').innerHTML = `
       <div class="mb-3 p-2 bg-gray-800/60 rounded text-xs text-gray-500 font-mono break-all">
-        <span class="text-gray-600">Matched format: </span>${esc(r.format_matched)}
+        <span class="text-gray-600">Matched format: </span>${esc(r.format_matched)} ${modeBadge}
+        <div class="mt-1">${counts}</div>
+        ${parseWarn}
       </div>
+      <table class="w-full mb-4">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-800">
+          <th class="pb-2 pr-4 text-xs font-medium">Extracted Field</th>
+          <th class="pb-2 text-xs font-medium">Value</th>
+        </tr></thead>
+        <tbody>${rowsExtract}</tbody>
+      </table>
+      ${rewrites.length ? `
+      <h4 class="text-xs font-semibold text-emerald-300 mb-2">Derived (rewrites applied — ${rewrites.length})</h4>
       <table class="w-full">
         <thead><tr class="text-left text-gray-500 border-b border-gray-800">
-          <th class="pb-2 pr-4 text-xs font-medium">Field</th>
-          <th class="pb-2 text-xs font-medium">Extracted Value</th>
+          <th class="pb-2 pr-4 text-xs font-medium">Output Field</th>
+          <th class="pb-2 text-xs font-medium">Value</th>
         </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`
+        <tbody>${rowsRewrite}</tbody>
+      </table>` : ''}`
   } catch(e) {
     document.getElementById('qt-result').innerHTML = errBox(e.message)
   } finally { setBtn('btn-qt', false, 'Test') }
