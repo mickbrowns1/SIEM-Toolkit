@@ -90,21 +90,28 @@ async def simulate_filter(rule: FilterRule):
     """Estimate how many events and GB would be eliminated by an exclusion filter."""
     from_dt, to_dt = _date_range(rule.days)
 
+    # Build Scalyr filter expression clauses (uses = not ==, SDL syntax)
     clauses = []
     if rule.source:
-        clauses.append(f"dataSource.name=='{rule.source}'")
+        clauses.append(f"dataSource.name = '{rule.source}'")
     if rule.event_type:
-        clauses.append(f"event.type=='{rule.event_type}'")
+        clauses.append(f"event.type = '{rule.event_type}'")
 
     if clauses:
-        filter_expr = " and ".join(clauses)
-        query = f"| filter {filter_expr} | group events=count()"
+        filter_expr = " ".join(clauses)
+        query = f"{filter_expr} | group events=count()"
     else:
-        query = "| group events=count()"
+        query = "dataSource.name != '' | group events=count()"
 
     try:
         result = await s1_client.run_powerquery(query, from_dt, to_dt)
-        events = (result.get("events") or [{}])[0].get("events", 0) if isinstance(result.get("events"), list) else 0
+        err = result.get("error") if isinstance(result, dict) else None
+        if err:
+            raise HTTPException(502, f"PowerQuery error: {err}")
+        rows = result.get("events") or []
+        events = rows[0].get("events", 0) if rows else 0
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(502, f"PowerQuery error: {e}")
 

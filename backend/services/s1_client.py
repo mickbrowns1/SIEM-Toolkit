@@ -6,6 +6,12 @@ from datetime import datetime, timezone
 BASE_URL = os.environ.get("S1_BASE_URL", "https://demo.sentinelone.net").rstrip("/")
 TOKEN = os.environ.get("S1_API_TOKEN", "")
 
+# Configurable PowerQuery timeout — SDL queries on large tenants can exceed 2 min.
+# Set SDL_PQ_TIMEOUT in .env (seconds). Default: 600.
+SDL_PQ_TIMEOUT = int(os.environ.get("SDL_PQ_TIMEOUT", "600"))
+# How many times to retry on ReadTimeout before giving up. Default: 1 (one retry).
+SDL_PQ_TIMEOUT_RETRIES = int(os.environ.get("SDL_PQ_TIMEOUT_RETRIES", "1"))
+
 # Scalyr/XDR PowerQuery credentials — from SDL_XDR_URL + SDL_LOG_READ_KEY
 # in the SentinelOne console: Settings → Integrations → Data Lake API Keys
 SDL_XDR_URL = os.environ.get("SDL_XDR_URL", "https://xdr.us1.sentinelone.net").rstrip("/")
@@ -117,8 +123,12 @@ async def run_powerquery(query: str, from_date: str, to_date: str, max_count: in
         "maxCount": max_count,
     }
 
-    async with httpx.AsyncClient(timeout=120) as client:
-        for attempt in range(3):
+    # Use a generous read timeout for PowerQuery — large SDL scans can be slow.
+    pq_timeout = httpx.Timeout(connect=15.0, read=SDL_PQ_TIMEOUT, write=30.0, pool=15.0)
+    max_attempts = 2 + SDL_PQ_TIMEOUT_RETRIES  # base 2 (rate-limit) + timeout retries
+
+    async with httpx.AsyncClient(timeout=pq_timeout) as client:
+        for attempt in range(max_attempts):
             try:
                 resp = await client.post(
                     f"{SDL_XDR_URL}/api/powerQuery",
@@ -126,12 +136,24 @@ async def run_powerquery(query: str, from_date: str, to_date: str, max_count: in
                 )
                 resp.raise_for_status()
                 break
-            except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429 and attempt < 2:
-                    await asyncio.sleep(10 * (attempt + 1))
+            except httpx.ReadTimeout:
+                if attempt < max_attempts - 1:
+                    await asyncio.sleep(5)
                     continue
                 raise RuntimeError(
-                    f"HTTP {e.response.status_code} from {e.request.url}: {e.response.text[:500]}"
+                    f"PowerQuery timed out after {SDL_PQ_TIMEOUT}s "
+                    f"(increase SDL_PQ_TIMEOUT in .env). Query: {query[:200]}"
+                )
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < max_attempts - 1:
+                    await asyncio.sleep(10 * (attempt + 1))
+                    continue
+                try:
+                    detail = e.response.json()
+                except Exception:
+                    detail = e.response.text[:500]
+                raise RuntimeError(
+                    f"HTTP {e.response.status_code} from {e.request.url}: {detail}"
                 ) from e
 
         data = resp.json()
