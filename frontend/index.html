@@ -185,7 +185,7 @@ async function homeLoadStats() {
     const sources = (r.sources || []).filter(s => !(EXCLUDED_SOURCES.has(s.source_name) && !s.unlabelled))
     const total = sources.length
     const covered  = sources.filter(s => s.status === 'covered').length
-    const stub     = sources.filter(s => s.status === 'stub_parser').length
+    const stub     = r.summary?.stub_parsers ?? sources.filter(s => s.status === 'stub_parser').length
     const pct = total ? Math.round(covered / total * 100) : 0
     const pctColor = pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'
 
