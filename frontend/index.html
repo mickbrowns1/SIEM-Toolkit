@@ -2332,7 +2332,8 @@ route()
 ;(async () => {
   try {
     const cfg = await apiGet('/api/settings/config')
-    const url = (cfg.find(c => c.key === 'S1_BASE_URL') || {}).value || ''
+    const fields = cfg.fields || cfg
+    const url = (fields.find(c => c.key === 'S1_BASE_URL') || {}).value || ''
     const el = document.getElementById('sidebar-tenant')
     if (el) el.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured'
   } catch { /* leave as-is */ }
