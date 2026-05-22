@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from db import engine, Base, get_db, ParsedRule, RuleFiringCache
-from routers import coverage, ingest, settings, quality
+from db import engine, Base, get_db, ParsedRule, RuleFiringCache, CoverageSnapshot
+from routers import coverage, ingest, settings, quality, query
 
 Base.metadata.create_all(bind=engine)
 
@@ -21,6 +21,23 @@ with engine.connect() as _conn:
         "alert_count INTEGER DEFAULT 0, "
         "period_days INTEGER DEFAULT 30, "
         "checked_at TIMESTAMP"
+        ")"
+    ))
+    _conn.execute(text(
+        "CREATE TABLE IF NOT EXISTS coverage_snapshots ("
+        "id SERIAL PRIMARY KEY, "
+        "recorded_at TIMESTAMP, "
+        "health_score FLOAT DEFAULT 0, "
+        "parser_pct FLOAT DEFAULT 0, "
+        "mitre_pct FLOAT DEFAULT 0, "
+        "firing_pct FLOAT DEFAULT 0, "
+        "active_sources INTEGER DEFAULT 0, "
+        "covered_sources INTEGER DEFAULT 0, "
+        "rules_loaded INTEGER DEFAULT 0, "
+        "tactics_covered INTEGER DEFAULT 0, "
+        "techniques_covered INTEGER DEFAULT 0, "
+        "rules_with_mitre INTEGER DEFAULT 0, "
+        "rules_fired INTEGER DEFAULT 0"
         ")"
     ))
     _conn.commit()
@@ -73,6 +90,7 @@ app.include_router(coverage.router, prefix="/api/coverage", tags=["Coverage"])
 app.include_router(ingest.router,   prefix="/api/ingest",   tags=["Ingest"])
 app.include_router(settings.router, prefix="/api/settings", tags=["Settings"])
 app.include_router(quality.router,  prefix="/api/quality",  tags=["Quality"])
+app.include_router(query.router,    prefix="/api/query",    tags=["Query"])
 
 
 @app.get("/health")

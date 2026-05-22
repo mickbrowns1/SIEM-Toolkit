@@ -4,7 +4,7 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime
-from db import get_db, ParsedRule, ParserField, ActiveSource, RuleFiringCache
+from db import get_db, ParsedRule, ParserField, ActiveSource, RuleFiringCache, CoverageSnapshot
 from services import s1_client, rule_parser
 
 DETECTIONS_FILE = os.environ.get("DETECTIONS_FILE", "/app/data/detections.json")
@@ -571,6 +571,27 @@ async def sync_sources(days: int = 7, db: Session = Depends(get_db)):
 
     db.commit()
     synced_names = [r["dataSource.name"] for r in rows if r.get("dataSource.name") and r["dataSource.name"] not in _S1_NATIVE_SOURCES]
+
+    # Auto-record a coverage snapshot after every live-sources sync
+    try:
+        h = _compute_health(db)
+        db.add(CoverageSnapshot(
+            health_score=h["health_score"],
+            parser_pct=h["parser_pct"],
+            mitre_pct=h["mitre_pct"],
+            firing_pct=h["firing_pct"] or 0.0,
+            active_sources=h["active_sources"],
+            covered_sources=h["covered_sources"],
+            rules_loaded=h["rules_loaded"],
+            tactics_covered=h["tactics_covered"],
+            techniques_covered=h["techniques_covered"],
+            rules_with_mitre=h["rules_with_mitre"],
+            rules_fired=h["rules_fired"],
+        ))
+        db.commit()
+    except Exception:
+        pass  # snapshot failure should never break sync
+
     return {"synced": seen, "sources": synced_names}
 
 
@@ -1058,6 +1079,292 @@ def get_rule_firing_cache(db: Session = Depends(get_db)):
             "period_days": period_days,
             "checked_at": checked_at,
         },
+    }
+
+
+def _compute_health(db) -> dict:
+    """Compute current health score from DB state.
+
+    Weights:
+      40% parser coverage  — what % of active sources have a working parser
+      35% MITRE coverage   — what % of the 14 standard ATT&CK tactics are covered
+      25% rule firing      — what % of library rules have fired (0 if cache empty)
+    """
+    # --- Parser coverage ---
+    all_sources = db.query(ActiveSource).all()
+    total_sources = len(all_sources)
+    # "covered" = parser_detected > 0 (parser running in data lake)
+    covered_sources = sum(1 for s in all_sources if (s.parser_detected or 0) > 0)
+    parser_pct = round((covered_sources / total_sources * 100) if total_sources else 0.0, 1)
+
+    # --- MITRE coverage ---
+    TOTAL_TACTICS = 14  # standard ATT&CK Enterprise tactic count
+    rules = db.query(ParsedRule).filter_by(rule_type="library").all()
+    total_rules = len(rules)
+    covered_tactics: set = set()
+    covered_techniques: set = set()
+    rules_with_mitre = 0
+    for rule in rules:
+        try:
+            raw = json.loads(rule.raw) if rule.raw else {}
+        except Exception:
+            raw = {}
+        tactics = raw.get("tactics", [])
+        techniques = raw.get("techniques", [])
+        if tactics or techniques:
+            rules_with_mitre += 1
+        for t in tactics:
+            if t and t != "Uncategorized":
+                covered_tactics.add(t)
+        for tech in techniques:
+            k = tech.get("id") or tech.get("name")
+            if k:
+                covered_techniques.add(k)
+    tactics_covered = len(covered_tactics)
+    techniques_covered = len(covered_techniques)
+    mitre_pct = round((tactics_covered / TOTAL_TACTICS * 100), 1)
+
+    # --- Rule firing ---
+    firing_rows = db.query(RuleFiringCache).all()
+    cache_populated = len(firing_rows) > 0
+    rules_fired = sum(1 for r in firing_rows if r.alert_count > 0)
+    if cache_populated and total_rules > 0:
+        firing_pct = round(rules_fired / total_rules * 100, 1)
+    else:
+        firing_pct = 0.0
+
+    # --- Weighted health score ---
+    if cache_populated:
+        score = round(0.40 * parser_pct + 0.35 * mitre_pct + 0.25 * firing_pct, 1)
+    else:
+        # Without firing data, reweight between parser + MITRE
+        score = round(0.55 * parser_pct + 0.45 * mitre_pct, 1)
+
+    return {
+        "health_score": score,
+        "parser_pct": parser_pct,
+        "mitre_pct": mitre_pct,
+        "firing_pct": firing_pct if cache_populated else None,
+        "active_sources": total_sources,
+        "covered_sources": covered_sources,
+        "rules_loaded": total_rules,
+        "tactics_covered": tactics_covered,
+        "techniques_covered": techniques_covered,
+        "rules_with_mitre": rules_with_mitre,
+        "rules_fired": rules_fired,
+        "firing_cache_populated": cache_populated,
+        "components": {
+            "parser_coverage": {"value": parser_pct, "weight": 0.40 if cache_populated else 0.55, "label": "Parser Coverage"},
+            "mitre_coverage":  {"value": mitre_pct,  "weight": 0.35 if cache_populated else 0.45, "label": "MITRE Coverage"},
+            "rule_firing":     {"value": firing_pct if cache_populated else None, "weight": 0.25 if cache_populated else 0.0, "label": "Rule Firing Rate"},
+        }
+    }
+
+
+@router.get("/health")
+def get_health_score(db: Session = Depends(get_db)):
+    """Return the current tenant health score and component breakdown."""
+    h = _compute_health(db)
+    # Most recent snapshot for trend comparison
+    prev = db.query(CoverageSnapshot).order_by(CoverageSnapshot.recorded_at.desc()).offset(1).first()
+    delta = None
+    if prev:
+        delta = round(h["health_score"] - prev.health_score, 1)
+    h["delta_from_previous"] = delta
+    return h
+
+
+@router.post("/snapshot")
+def record_snapshot(db: Session = Depends(get_db)):
+    """Record a coverage snapshot. Called automatically at end of sync-sources."""
+    h = _compute_health(db)
+    snap = CoverageSnapshot(
+        health_score=h["health_score"],
+        parser_pct=h["parser_pct"],
+        mitre_pct=h["mitre_pct"],
+        firing_pct=h["firing_pct"] or 0.0,
+        active_sources=h["active_sources"],
+        covered_sources=h["covered_sources"],
+        rules_loaded=h["rules_loaded"],
+        tactics_covered=h["tactics_covered"],
+        techniques_covered=h["techniques_covered"],
+        rules_with_mitre=h["rules_with_mitre"],
+        rules_fired=h["rules_fired"],
+    )
+    db.add(snap)
+    db.commit()
+    return {"recorded": True, "health_score": h["health_score"]}
+
+
+@router.get("/snapshots")
+def get_snapshots(limit: int = 30, db: Session = Depends(get_db)):
+    """Return the last N daily snapshots for sparkline charts."""
+    rows = (
+        db.query(CoverageSnapshot)
+        .order_by(CoverageSnapshot.recorded_at.desc())
+        .limit(limit)
+        .all()
+    )
+    return {
+        "snapshots": [
+            {
+                "date": r.recorded_at.strftime("%Y-%m-%d"),
+                "health_score": r.health_score,
+                "parser_pct": r.parser_pct,
+                "mitre_pct": r.mitre_pct,
+                "firing_pct": r.firing_pct,
+                "active_sources": r.active_sources,
+                "covered_sources": r.covered_sources,
+            }
+            for r in reversed(rows)  # chronological order
+        ]
+    }
+
+
+@router.get("/dependency-map")
+def get_dependency_map(db: Session = Depends(get_db)):
+    """
+    Flip of the coverage map: for each detection library rule, show which
+    data sources it requires. Flags rules as 'at_risk' if any required
+    source has no parser or has zero recent events.
+    """
+    rules = db.query(ParsedRule).filter_by(rule_type="library").all()
+    active_sources = {s.source_name: s for s in db.query(ActiveSource).all()}
+    ds_index, _ = _build_parser_ds_index()
+
+    # Build set of source names that are "healthy" (have events + parser)
+    healthy_sources: set = set()
+    for name, src in active_sources.items():
+        has_parser = name in ds_index or (src.parser_detected or 0) > 0
+        if has_parser and (src.event_count or 0) > 0:
+            healthy_sources.add(name)
+
+    out = []
+    for rule in rules:
+        try:
+            raw_data = json.loads(rule.raw) if rule.raw else {}
+        except Exception:
+            raw_data = {}
+
+        data_sources = raw_data.get("data_sources", [])
+        tactics = raw_data.get("tactics", [])
+        techniques = raw_data.get("techniques", [])
+        generated_alerts = raw_data.get("generated_alerts")
+
+        source_statuses = []
+        at_risk = False
+        for ds in data_sources:
+            src = active_sources.get(ds)
+            if src is None:
+                status = "inactive"
+                at_risk = True
+            elif ds not in healthy_sources:
+                status = "no_parser"
+                at_risk = True
+            else:
+                status = "healthy"
+            source_statuses.append({"source": ds, "status": status})
+
+        # Rules with no source requirements are not "at risk" (platform-wide rules)
+        if not data_sources:
+            at_risk = False
+
+        out.append({
+            "rule": rule.name,
+            "rule_id": rule.rule_id,
+            "sources": source_statuses,
+            "source_count": len(data_sources),
+            "tactics": tactics,
+            "techniques": [t.get("id", "") for t in techniques if t.get("id")],
+            "generated_alerts": generated_alerts,
+            "at_risk": at_risk,
+            "no_sources": len(data_sources) == 0,
+        })
+
+    # Sort: at-risk first, then by source count desc, then alphabetical
+    out.sort(key=lambda r: (not r["at_risk"], -r["source_count"], r["rule"]))
+
+    at_risk_count = sum(1 for r in out if r["at_risk"])
+    healthy_count = sum(1 for r in out if not r["at_risk"] and not r["no_sources"])
+
+    return {
+        "rules": out,
+        "total": len(out),
+        "at_risk": at_risk_count,
+        "healthy": healthy_count,
+        "no_source_requirements": sum(1 for r in out if r["no_sources"]),
+    }
+
+
+@router.get("/onboarding-status")
+def get_onboarding_status(db: Session = Depends(get_db)):
+    """
+    Pipeline status for each active source across 6 lifecycle stages.
+    Returns per-source progress for the onboarding tracker view.
+    """
+    import re as _re
+    active_sources = db.query(ActiveSource).order_by(ActiveSource.event_count.desc()).all()
+    ds_index, stub_parsers = _build_parser_ds_index()
+    stub_names = {s["parser_name"] for s in stub_parsers}
+    firing_cache = {r.rule_name: r.alert_count for r in db.query(RuleFiringCache).all()}
+
+    # rule_by_source: source_name → list of rule names
+    rules = db.query(ParsedRule).filter_by(rule_type="library").all()
+    rule_by_source: dict = {}
+    for rule in rules:
+        try:
+            raw_data = json.loads(rule.raw) if rule.raw else {}
+        except Exception:
+            raw_data = {}
+        for ds in raw_data.get("data_sources", []):
+            rule_by_source.setdefault(ds, []).append(rule.name)
+
+    def _normalize(s):
+        return _re.sub(r"[^a-z0-9]", "", s.lower())
+
+    def _find_parser(source_name):
+        if source_name in ds_index:
+            return ds_index[source_name]
+        sn = _normalize(source_name)
+        for ds_name, info in ds_index.items():
+            if _normalize(ds_name) in sn or sn in _normalize(ds_name):
+                return info
+        return None
+
+    out = []
+    for src in active_sources:
+        parser_info = _find_parser(src.source_name)
+        parser_active = (src.parser_detected or 0) > 0
+        has_ds_name = parser_info is not None and parser_info.get("parser_name") not in stub_names
+        rules_for_src = rule_by_source.get(src.source_name, [])
+        rules_firing = any(firing_cache.get(r, 0) > 0 for r in rules_for_src)
+
+        stages = [
+            {"stage": "Data Received",      "done": (src.event_count or 0) > 0},
+            {"stage": "Parser File Exists", "done": parser_info is not None},
+            {"stage": "Parser Active",      "done": parser_active},
+            {"stage": "Source Labeled",     "done": has_ds_name and parser_active},
+            {"stage": "Detection Rules",    "done": len(rules_for_src) > 0},
+            {"stage": "Rules Firing",       "done": rules_firing},
+        ]
+        completed = sum(1 for s in stages if s["done"])
+        out.append({
+            "source": src.source_name,
+            "event_count": src.event_count,
+            "stages": stages,
+            "completed": completed,
+            "total": len(stages),
+            "pct": round(completed / len(stages) * 100),
+        })
+
+    # Sort: incomplete first, then by event volume
+    out.sort(key=lambda x: (x["completed"] == x["total"], -x["event_count"]))
+
+    return {
+        "sources": out,
+        "fully_onboarded": sum(1 for s in out if s["completed"] == s["total"]),
+        "in_progress": sum(1 for s in out if 0 < s["completed"] < s["total"]),
+        "not_started": sum(1 for s in out if s["completed"] == 0),
     }
 
 

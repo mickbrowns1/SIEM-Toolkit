@@ -57,6 +57,23 @@ class RuleFiringCache(Base):
     checked_at = Column(DateTime, default=datetime.utcnow)
 
 
+class CoverageSnapshot(Base):
+    __tablename__ = "coverage_snapshots"
+    id = Column(Integer, primary_key=True)
+    recorded_at = Column(DateTime, default=datetime.utcnow, index=True)
+    health_score = Column(Float, default=0.0)
+    parser_pct = Column(Float, default=0.0)      # % sources with working parser
+    mitre_pct = Column(Float, default=0.0)        # % ATT&CK tactics covered
+    firing_pct = Column(Float, default=0.0)       # % rules that have fired
+    active_sources = Column(Integer, default=0)
+    covered_sources = Column(Integer, default=0)
+    rules_loaded = Column(Integer, default=0)
+    tactics_covered = Column(Integer, default=0)
+    techniques_covered = Column(Integer, default=0)
+    rules_with_mitre = Column(Integer, default=0)
+    rules_fired = Column(Integer, default=0)
+
+
 def get_db():
     db = SessionLocal()
     try:
