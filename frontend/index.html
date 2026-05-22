@@ -14,7 +14,7 @@
         <div class="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-purple-900/40">S1</div>
         <span class="font-semibold text-sm text-white tracking-tight">Parallax</span>
       </div>
-      <p class="text-xs text-slate-500 mt-1">demo.sentinelone.net</p>
+      <p class="text-xs text-slate-500 mt-1" id="sidebar-tenant">…</p>
     </div>
     <nav class="flex-1 p-3 space-y-0.5">
       <a href="#/" data-page="home"       class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Overview</a>
@@ -2347,6 +2347,16 @@ function route() {
 
 window.addEventListener('hashchange', route)
 route()
+
+// Populate sidebar tenant label from configured S1_BASE_URL
+;(async () => {
+  try {
+    const cfg = await apiGet('/api/settings/config')
+    const url = (cfg.find(c => c.key === 'S1_BASE_URL') || {}).value || ''
+    const el = document.getElementById('sidebar-tenant')
+    if (el) el.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured'
+  } catch { /* leave as-is */ }
+})()
 </script>
 </body>
 </html>
