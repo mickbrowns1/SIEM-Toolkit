@@ -451,8 +451,15 @@ async def load_parsers_from_sdl(db: Session = Depends(get_db)):
             errors.append({"parser": entry.name, "error": str(e)})
 
     db.commit()
+
+    # Count actual parser files (those with a formats: section) separately from
+    # the raw file count which includes dashboards, saved-searches, etc.
+    ds_idx, stubs_idx = _build_parser_ds_index()
+    parser_count = len(ds_idx) + len(stubs_idx)
+
     return {
-        "loaded": len(loaded),
+        "loaded": len(loaded),          # all files indexed into DB
+        "parser_count": parser_count,   # files that are real parsers (have formats: block)
         "parsers": loaded,
         "errors": errors,
         "console_fetch": fetch_result,
@@ -916,7 +923,7 @@ def get_coverage_map(db: Session = Depends(get_db)):
             "parser_needed": needed_count,
             "stub_parsers": stub_file_count,
             "unlabelled_events": _unlabelled_event_count,
-            "parsers_loaded": len(parser_index),
+            "parsers_loaded": len(ds_index) + len(stub_parsers),
             "rules_loaded": len(rules),
             "firing_cache_populated": firing_cache_populated,
         },

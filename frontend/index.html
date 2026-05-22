@@ -357,7 +357,8 @@ async function loadSDLParsers() {
     } else if (cf.skipped) {
       parts.push(`console sync skipped (${cf.skipped})`)
     }
-    parts.push(`${res.loaded} parser${res.loaded !== 1 ? 's' : ''} loaded`)
+    const parserCount = res.parser_count ?? res.loaded
+    parts.push(`${parserCount} parser${parserCount !== 1 ? 's' : ''} loaded`)
     if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
     const msg = `✓ ${parts.join(' · ')}`
     const hasErrors = res.errors?.length || cf.failed?.length
@@ -492,7 +493,8 @@ async function cvSyncAll() {
       let parts = []
       if (cf.fetched > 0) parts.push(`fetched ${cf.fetched} from console`)
       else if (cf.skipped) parts.push(`console sync skipped (${cf.skipped})`)
-      parts.push(`${res.loaded} parser${res.loaded !== 1 ? 's' : ''} loaded`)
+      const parserCount = res.parser_count ?? res.loaded
+      parts.push(`${parserCount} parser${parserCount !== 1 ? 's' : ''} loaded`)
       if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
 
       const pathsListed = dbg.paths_listed || []
