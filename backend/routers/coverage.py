@@ -1339,22 +1339,41 @@ def get_onboarding_status(db: Session = Depends(get_db)):
         rules_for_src = rule_by_source.get(src.source_name, [])
         rules_firing = any(firing_cache.get(r, 0) > 0 for r in rules_for_src)
 
-        stages = [
+        has_detection_rules = len(rules_for_src) > 0
+
+        # Core stages (apply to every source)
+        core_stages = [
             {"stage": "Data Received",      "done": (src.event_count or 0) > 0},
             {"stage": "Parser File Exists", "done": parser_info is not None},
             {"stage": "Parser Active",      "done": parser_active},
             {"stage": "Source Labeled",     "done": has_ds_name and parser_active},
-            {"stage": "Detection Rules",    "done": len(rules_for_src) > 0},
-            {"stage": "Rules Firing",       "done": rules_firing},
         ]
-        completed = sum(1 for s in stages if s["done"])
+        # Detection stages (only meaningful when detection rules exist)
+        detection_stages = [
+            {"stage": "Detection Rules",    "done": has_detection_rules, "na": False},
+            {"stage": "Rules Firing",       "done": rules_firing,        "na": False},
+        ]
+
+        if has_detection_rules:
+            stages = core_stages + detection_stages
+            total = 6
+        else:
+            # Mark detection stages as N/A — don't count against progress
+            stages = core_stages + [
+                {"stage": "Detection Rules", "done": False, "na": True},
+                {"stage": "Rules Firing",    "done": False, "na": True},
+            ]
+            total = 4  # progress calculated over core stages only
+
+        completed = sum(1 for s in stages if s.get("done") and not s.get("na"))
         out.append({
             "source": src.source_name,
             "event_count": src.event_count,
             "stages": stages,
             "completed": completed,
-            "total": len(stages),
-            "pct": round(completed / len(stages) * 100),
+            "total": total,
+            "has_detection_rules": has_detection_rules,
+            "pct": round(completed / total * 100) if total else 0,
         })
 
     # Sort: incomplete first, then by event volume

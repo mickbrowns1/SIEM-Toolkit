@@ -973,7 +973,6 @@ function obCopy() {
 
 // ── Onboarding Pipeline ───────────────────────────────────────────────────
 
-let _obShowCompleted = false
 
 let _obPipelineData = null
 
@@ -992,13 +991,17 @@ async function loadOnboardingPipeline() {
       <span class="px-3 py-1.5 rounded-full bg-slate-800/60 ring-1 ring-white/5 text-xs text-slate-400">○ Not Started: ${data.not_started}</span>`
 
     const STAGE_ICONS = ['📥','📄','⚙️','🏷️','🔍','🔔']
-    const incomplete = sources.filter(s => s.completed < s.total)
-    const complete = sources.filter(s => s.completed === s.total)
+    const STAGE_LABELS = ['Data Received','Parser File','Parser Active','Source Labeled','Detection Rules','Rules Firing']
+
+    // Split into two groups
+    const withRules    = sources.filter(s => s.has_detection_rules)
+    const withoutRules = sources.filter(s => !s.has_detection_rules)
 
     function renderRow(s, i) {
-      const stageDots = s.stages.map((st, si) =>
-        `<span class="cursor-default text-base ${st.done ? 'text-emerald-400' : 'text-slate-700'}" title="${esc(st.stage)}">${STAGE_ICONS[si] || '●'}</span>`
-      ).join('')
+      const stageDots = s.stages.map((st, si) => {
+        if (st.na) return `<span class="cursor-default text-base text-slate-800" title="${esc(st.stage)} — N/A (no detection rules mapped)">—</span>`
+        return `<span class="cursor-default text-base ${st.done ? 'text-emerald-400' : 'text-slate-700'}" title="${esc(st.stage)}">${STAGE_ICONS[si] || '●'}</span>`
+      }).join('')
       const pct = s.pct
       const barColor = pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
       return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
@@ -1014,37 +1017,47 @@ async function loadOnboardingPipeline() {
       </tr>`
     }
 
-    const completeCount = complete.length
-    const toggleBtn = completeCount > 0
-      ? `<tr id="ob-complete-toggle-row" class="border-b border-white/5">
-          <td colspan="4" class="py-2 px-4">
-            <button onclick="obToggleCompleted()" class="text-xs text-slate-500 hover:text-gray-300 transition-colors">
-              <span id="ob-complete-toggle-label">${_obShowCompleted ? 'Hide' : 'Show'} completed (${completeCount})</span>
-            </button>
-          </td>
-        </tr>`
-      : ''
-
-    const completeRows = complete.map((s, i) => renderRow(s, i))
-    const completeSection = `<tbody id="ob-complete-rows" class="${_obShowCompleted ? '' : 'hidden'}">${completeRows.join('')}</tbody>`
+    function renderSection(title, desc, sectionSources, idPrefix) {
+      if (sectionSources.length === 0) return ''
+      const incomplete = sectionSources.filter(s => s.completed < s.total)
+      const complete   = sectionSources.filter(s => s.completed === s.total)
+      const toggleBtn  = complete.length > 0
+        ? `<tr id="${idPrefix}-toggle-row" class="border-b border-white/5">
+            <td colspan="4" class="py-2 px-4">
+              <button onclick="obToggleSection('${idPrefix}')" class="text-xs text-slate-500 hover:text-gray-300 transition-colors">
+                <span id="${idPrefix}-toggle-label">Show completed (${complete.length})</span>
+              </button>
+            </td>
+          </tr>` : ''
+      const completeSection = `<tbody id="${idPrefix}-complete-rows" class="hidden">${complete.map((s,i)=>renderRow(s,i)).join('')}</tbody>`
+      return `
+        <div class="mb-5">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wide">${esc(title)}</span>
+            <span class="text-xs text-slate-600">${esc(desc)}</span>
+          </div>
+          <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+            <table class="w-full text-sm">
+              <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+                <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Source</th>
+                <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Pipeline Stages</th>
+                <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Progress</th>
+                <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Events</th>
+              </tr></thead>
+              <tbody>${incomplete.map((s,i)=>renderRow(s,i)).join('')}</tbody>
+              ${toggleBtn}
+              ${completeSection}
+            </table>
+          </div>
+        </div>`
+    }
 
     tableEl.innerHTML = `
-      <div class="text-xs text-slate-600 mb-2 flex gap-4">
-        ${STAGE_ICONS.map((icon, i) => `<span>${icon} Stage ${i+1}: ${['Data Received','Parser File','Parser Active','Source Labeled','Detection Rules','Rules Firing'][i]}</span>`).join('')}
+      <div class="text-xs text-slate-600 mb-3 flex flex-wrap gap-3">
+        ${STAGE_ICONS.map((icon,i) => `<span>${icon} ${STAGE_LABELS[i]}</span>`).join('')}
       </div>
-      <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
-        <table class="w-full text-sm">
-          <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
-            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Source</th>
-            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Pipeline Stages</th>
-            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Progress</th>
-            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Events</th>
-          </tr></thead>
-          <tbody>${incomplete.map((s, i) => renderRow(s, i)).join('')}</tbody>
-          ${toggleBtn}
-          ${completeSection}
-        </table>
-      </div>
+      ${renderSection('With Detection Coverage', `${withRules.length} sources — 6-stage pipeline`, withRules, 'ob-with')}
+      ${renderSection('Parser Only', `${withoutRules.length} sources — no detection rules mapped (stages 5–6 N/A)`, withoutRules, 'ob-without')}
       ${sources.length === 0 ? '<p class="text-slate-600 text-sm text-center py-4">No active sources found — sync sources on the Coverage Map first.</p>' : ''}`
   } catch(e) {
     if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
@@ -1061,14 +1074,14 @@ function obTogglePipeline() {
   if (btn) btn.textContent = _obPipelineVisible ? 'Hide Pipeline' : 'Show Pipeline'
 }
 
-function obToggleCompleted() {
-  _obShowCompleted = !_obShowCompleted
-  const rows = document.getElementById('ob-complete-rows')
-  const label = document.getElementById('ob-complete-toggle-label')
-  if (rows) rows.classList.toggle('hidden', !_obShowCompleted)
+function obToggleSection(idPrefix) {
+  const rows  = document.getElementById(`${idPrefix}-complete-rows`)
+  const label = document.getElementById(`${idPrefix}-toggle-label`)
+  if (!rows) return
+  const hidden = rows.classList.toggle('hidden')
   if (label) {
-    const count = rows?.querySelectorAll('tr').length || 0
-    label.textContent = (_obShowCompleted ? 'Hide' : 'Show') + ` completed (${count})`
+    const count = rows.querySelectorAll('tr').length
+    label.textContent = (hidden ? 'Show' : 'Hide') + ` completed (${count})`
   }
 }
 
