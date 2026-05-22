@@ -67,11 +67,11 @@ SDL_PQ_TIMEOUT_RETRIES=1                        # Retries on timeout (default: 1
 ANTHROPIC_API_KEY=                              # Optional — not currently used
 ```
 
-**S1_API_TOKEN** — generate at *Settings → Users → Service Users*. Account scope gives broadest access; site scope works for most features with some limitations.
+**S1_API_TOKEN** — generate at *Policies and settings → Users → Service Users*. Account scope gives broadest access; site scope works for most features with some limitations.
 
-**SDL_LOG_READ_KEY** — found at *Settings → Integrations → Data Lake API Keys → Log Read*.
+**SDL_LOG_READ_KEY** — found at *Policies and settings → Integrations → Data Lake API Keys → Log Read*.
 
-**SDL_CONFIG_READ_KEY** — found at *Settings → Integrations → Data Lake API Keys → Configuration Read*. Required to sync parser files directly from SDL via the Coverage Map. Without it, you can still load parser files manually from the `parsers/` directory.
+**SDL_CONFIG_READ_KEY** — found at *Policies and settings → Integrations → Data Lake API Keys → Configuration Read*. Required to sync parser files directly from SDL via the Coverage Map. Without it, you can still load parser files manually from the `parsers/` directory.
 
 ### 2. Start the Stack
 
