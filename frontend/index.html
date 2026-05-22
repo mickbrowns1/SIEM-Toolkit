@@ -514,18 +514,63 @@ async function cvSyncAll() {
   setBtn('btn-sync-all', true, 'Syncing…')
   const errEl = document.getElementById('cv-err')
   if (errEl) errEl.innerHTML = ''
+  const results = []
+  let hasError = false
+
   try {
     // 1. SDL Parsers
     setBtn('btn-sync-all', true, 'Syncing Parsers…')
-    await loadSDLParsers()
+    try {
+      const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
+      const cf = res.console_fetch || {}
+      const dbg = cf.debug || {}
+      let parts = []
+      if (cf.fetched > 0) parts.push(`fetched ${cf.fetched} from console`)
+      else if (cf.skipped) parts.push(`console sync skipped (${cf.skipped})`)
+      parts.push(`${res.loaded} parser${res.loaded !== 1 ? 's' : ''} loaded`)
+      if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
+
+      const pathsListed = dbg.paths_listed || []
+      const debugHtml = pathsListed.length > 0
+        ? `<details class="mt-2"><summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-200">SDL returned ${dbg.paths_found ?? pathsListed.length} path${pathsListed.length !== 1 ? 's' : ''} — click to inspect</summary>
+            <div class="mt-1 max-h-48 overflow-y-auto bg-slate-950 rounded-lg p-2 text-xs font-mono text-gray-300 space-y-0.5">${pathsListed.map(p => `<div class="truncate">${esc(p)}</div>`).join('')}</div>
+           </details>`
+        : (dbg.paths_found === 0 ? `<div class="text-xs text-amber-400 mt-1">⚠ SDL returned 0 paths — check SDL_CONFIG_READ_KEY permissions</div>` : '')
+
+      results.push(`<div class="text-emerald-300"><span class="font-medium">SDL Parsers</span> · ✓ ${parts.join(' · ')}${debugHtml}</div>`)
+    } catch(e) {
+      results.push(`<div class="text-red-400"><span class="font-medium">SDL Parsers</span> · ✗ ${esc(e.message)}</div>`)
+      hasError = true
+    }
+
     // 2. Detection Library
     setBtn('btn-sync-all', true, 'Syncing Library…')
-    await syncLibrary()
+    try {
+      const r = await apiPost('/api/coverage/load-detections', {})
+      results.push(`<div class="text-emerald-300"><span class="font-medium">Detection Library</span> · ✓ ${r.loaded} rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`)
+    } catch(e) {
+      results.push(`<div class="text-red-400"><span class="font-medium">Detection Library</span> · ✗ ${esc(e.message)}</div>`)
+      hasError = true
+    }
+
     // 3. Live Sources
     setBtn('btn-sync-all', true, 'Syncing Sources…')
-    await cvSyncSources()
+    try {
+      const days = document.getElementById('sync-days')?.value || 7
+      const r = await apiPost(`/api/coverage/sync-sources?days=${days}`, {})
+      results.push(`<div class="text-emerald-300"><span class="font-medium">Live Sources</span> · ✓ ${r.synced} sources synced</div>`)
+    } catch(e) {
+      results.push(`<div class="text-red-400"><span class="font-medium">Live Sources</span> · ✗ ${esc(e.message)}</div>`)
+      hasError = true
+    }
+
+    await cvLoad()
   } finally {
     setBtn('btn-sync-all', false, 'Sync All')
+    if (errEl && results.length) {
+      const borderColor = hasError ? 'ring-red-700/50' : 'ring-emerald-700/50'
+      errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ${borderColor} rounded-xl text-sm mb-4 space-y-1">${results.join('')}</div>`
+    }
   }
 }
 
