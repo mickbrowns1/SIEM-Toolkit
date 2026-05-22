@@ -1056,8 +1056,8 @@ async function loadOnboardingPipeline() {
       <div class="text-xs text-slate-600 mb-3 flex flex-wrap gap-3">
         ${STAGE_ICONS.map((icon,i) => `<span>${icon} ${STAGE_LABELS[i]}</span>`).join('')}
       </div>
-      ${renderSection('With Detection Coverage', `${withRules.length} sources — 6-stage pipeline`, withRules, 'ob-with')}
-      ${renderSection('Parser Only', `${withoutRules.length} sources — no detection rules mapped (stages 5–6 N/A)`, withoutRules, 'ob-without')}
+      ${renderSection('Full Pipeline', `${withRules.length} sources — detection rules mapped (all 6 stages)`, withRules, 'ob-with')}
+      ${renderSection('Partial Pipeline', `${withoutRules.length} sources — no detection rules mapped (stages 5–6 N/A)`, withoutRules, 'ob-without')}
       ${sources.length === 0 ? '<p class="text-slate-600 text-sm text-center py-4">No active sources found — sync sources on the Coverage Map first.</p>' : ''}`
   } catch(e) {
     if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
