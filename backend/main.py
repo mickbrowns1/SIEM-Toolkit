@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from db import engine, Base, get_db, ParsedRule
+from db import engine, Base, get_db, ParsedRule, RuleFiringCache
 from routers import coverage, ingest, settings, quality
 
 Base.metadata.create_all(bind=engine)
@@ -13,6 +13,15 @@ with engine.connect() as _conn:
     ))
     _conn.execute(text(
         "ALTER TABLE active_sources ADD COLUMN IF NOT EXISTS unlabelled BOOLEAN DEFAULT FALSE"
+    ))
+    _conn.execute(text(
+        "CREATE TABLE IF NOT EXISTS rule_firing_cache ("
+        "id SERIAL PRIMARY KEY, "
+        "rule_name VARCHAR UNIQUE, "
+        "alert_count INTEGER DEFAULT 0, "
+        "period_days INTEGER DEFAULT 30, "
+        "checked_at TIMESTAMP"
+        ")"
     ))
     _conn.commit()
 

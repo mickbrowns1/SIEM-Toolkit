@@ -22,6 +22,7 @@
       <a href="#/ingest" data-page="ingest"   class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Ingest Dashboard</a>
       <a href="#/quality"    data-page="quality"    class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Parser Quality</a>
       <a href="#/onboarding" data-page="onboarding" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Onboarding</a>
+      <a href="#/threat" data-page="threat" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Threat Coverage</a>
     </nav>
     <div class="p-3 border-t border-white/5">
       <a href="#/settings" data-page="settings" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer text-slate-400 hover:bg-white/5 hover:text-gray-100 transition-colors">
@@ -559,7 +560,19 @@ function cvSetFilter(f) {
   }
 
   function detectionsCell(s) {
+    const firingPopulated = cvData?.summary?.firing_cache_populated === true
     if (s.rule_count) {
+      if (firingPopulated) {
+        const ruleItems = (s.rules || []).map(r => {
+          const alerts = r.alert_count || 0
+          if (alerts > 0) {
+            return `<span class="text-purple-400 font-mono text-xs" title="${esc(r.rule)} — ${alerts} alerts">${esc(r.rule.length > 40 ? r.rule.slice(0, 40) + '…' : r.rule)} <span class="text-emerald-500">(${alerts})</span></span>`
+          } else {
+            return `<span class="text-amber-400 font-mono text-xs" title="${esc(r.rule)} — no alerts in period">&#9888; ${esc(r.rule.length > 40 ? r.rule.slice(0, 40) + '…' : r.rule)}</span>`
+          }
+        })
+        return `<div class="space-y-0.5">${ruleItems.join('')}</div>`
+      }
       return `<span class="text-purple-400 font-medium">${s.rule_count}</span> rule${s.rule_count !== 1 ? 's' : ''}`
     }
     if (s.close_matches && s.close_matches.length) {
@@ -1394,6 +1407,222 @@ async function qtTest() {
   } finally { setBtn('btn-qt', false, 'Test') }
 }
 
+// ── Threat Coverage ───────────────────────────────────────────────────────
+
+function renderThreat() {
+  set(`<div class="p-8 max-w-6xl space-y-8">
+    <div>
+      <h1 class="text-xl font-extrabold text-white tracking-tight">Threat Coverage</h1>
+      <p class="text-sm text-slate-400 mt-1">MITRE ATT&amp;CK heatmap and detection rule firing status</p>
+    </div>
+
+    <!-- MITRE ATT&CK Heatmap -->
+    <div>
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-base font-semibold text-white">MITRE ATT&amp;CK Coverage</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Detection rules mapped to ATT&amp;CK tactics and techniques</p>
+        </div>
+        <button id="btn-sync-library-threat" onclick="syncLibraryThreat()"
+          class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white font-medium transition-colors shadow-sm">
+          Sync Detection Library
+        </button>
+      </div>
+      <div id="mitre-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
+      <div id="mitre-err"></div>
+      <div id="mitre-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div class="col-span-full text-slate-600 text-sm text-center py-8">Loading MITRE coverage…</div>
+      </div>
+    </div>
+
+    <!-- Rule Firing Status -->
+    <div>
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <h2 class="text-base font-semibold text-white">Rule Firing Status</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Rules that have never triggered an alert may be misconfigured or require data sources not yet active.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <select id="firing-period" class="bg-slate-800/80 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+            <option value="7">Last 7d</option>
+            <option value="14">Last 14d</option>
+            <option value="30" selected>Last 30d</option>
+            <option value="60">Last 60d</option>
+            <option value="90">Last 90d</option>
+          </select>
+          <button id="btn-sync-firing" onclick="syncRuleFiring()"
+            class="px-3 py-1.5 text-sm bg-emerald-700 hover:bg-emerald-600 rounded-lg text-white font-medium transition-colors shadow-sm">
+            Sync Alert Firing Status
+          </button>
+        </div>
+      </div>
+      <div id="firing-err"></div>
+      <div id="firing-summary"></div>
+      <div id="firing-table"></div>
+    </div>
+  </div>`)
+  loadMitre()
+  loadFiringStatus()
+}
+
+async function syncLibraryThreat() {
+  setBtn('btn-sync-library-threat', true)
+  const errEl = document.getElementById('mitre-err')
+  if (errEl) errEl.innerHTML = ''
+  try {
+    const r = await apiPost('/api/coverage/load-detections', {})
+    if (errEl) {
+      errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ring-emerald-700/50 rounded-xl text-sm text-emerald-300 mb-4">&#x2713; ${r.loaded} detection rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`
+      setTimeout(() => { errEl.innerHTML = '' }, 4000)
+    }
+    loadMitre()
+  } catch(e) {
+    if (errEl) errEl.innerHTML = errBox(e.message)
+  } finally { setBtn('btn-sync-library-threat', false, 'Sync Detection Library') }
+}
+
+async function loadMitre() {
+  const gridEl = document.getElementById('mitre-grid')
+  const statsEl = document.getElementById('mitre-stats')
+  if (!gridEl) return
+  gridEl.innerHTML = '<div class="col-span-full text-slate-600 text-sm text-center py-8 animate-pulse">Loading MITRE coverage…</div>'
+  try {
+    const data = await apiGet('/api/coverage/mitre')
+
+    // Stats row
+    if (statsEl) {
+      statsEl.innerHTML = `
+        ${statCard('Total Library Rules', data.total_rules, 'text-gray-200')}
+        ${statCard('Rules with MITRE Mapping', data.rules_with_mitre, 'text-purple-400')}
+        ${statCard('Tactics Covered', data.tactic_count, 'text-blue-400')}
+        ${statCard('Techniques Covered', data.total_techniques, 'text-emerald-400')}`
+    }
+
+    if (!data.tactics || data.tactics.length === 0) {
+      gridEl.innerHTML = `<div class="col-span-full bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-8 text-center text-slate-500 text-sm">
+        No MITRE data found. Sync the Detection Library to populate MITRE mappings.
+      </div>`
+      return
+    }
+
+    gridEl.innerHTML = data.tactics.map(t => {
+      const borderColor = t.rule_count >= 20 ? 'border-l-purple-500' : t.rule_count >= 5 ? 'border-l-blue-500' : 'border-l-slate-600'
+      const badgeColor  = t.rule_count >= 20 ? 'bg-purple-900/60 text-purple-300 border-purple-700' : t.rule_count >= 5 ? 'bg-blue-900/60 text-blue-300 border-blue-700' : 'bg-slate-800/60 text-slate-400 border-slate-700'
+
+      const MAX_SHOWN = 12
+      const chips = t.techniques.slice(0, MAX_SHOWN).map(tech =>
+        `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-slate-800/80 ring-1 ring-white/5 text-slate-400 font-mono" title="${esc(tech.name)}">${esc(tech.id || tech.name)}</span>`
+      ).join('')
+
+      const expandId = 'mitre-expand-' + t.tactic.replace(/[^a-z0-9]/gi, '_')
+      const moreChips = t.techniques.slice(MAX_SHOWN).map(tech =>
+        `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-slate-800/80 ring-1 ring-white/5 text-slate-400 font-mono" title="${esc(tech.name)}">${esc(tech.id || tech.name)}</span>`
+      ).join('')
+      const moreSection = t.techniques.length > MAX_SHOWN ? `
+        <div id="${expandId}" class="hidden flex flex-wrap gap-1 mt-1">${moreChips}</div>
+        <button onclick="mitreToggleMore('${expandId}', this)"
+          class="mt-1.5 text-xs text-purple-500 hover:text-purple-400 transition-colors">+${t.techniques.length - MAX_SHOWN} more</button>` : ''
+
+      return `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 border-l-4 ${borderColor} shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-semibold text-white text-sm">${esc(t.tactic)}</span>
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium border ${badgeColor}">${t.rule_count} rule${t.rule_count !== 1 ? 's' : ''}</span>
+        </div>
+        ${t.techniques.length > 0 ? `
+          <div class="flex flex-wrap gap-1">${chips}</div>
+          ${moreSection}` : `<p class="text-xs text-slate-600">No technique IDs mapped</p>`}
+      </div>`
+    }).join('')
+  } catch(e) {
+    if (gridEl) gridEl.innerHTML = `<div class="col-span-full text-red-400 text-sm">${esc(e.message)}</div>`
+  }
+}
+
+function mitreToggleMore(id, btn) {
+  const el = document.getElementById(id)
+  if (!el) return
+  const hidden = el.classList.toggle('hidden')
+  btn.textContent = hidden ? '+' + btn.textContent.replace(/^[^ ]+\s*/, '') + ' more' : 'Show less'
+  // Re-calculate count when hiding
+  if (hidden) {
+    const count = el.querySelectorAll('span').length
+    btn.textContent = '+' + count + ' more'
+  }
+}
+
+async function syncRuleFiring() {
+  setBtn('btn-sync-firing', true)
+  const errEl = document.getElementById('firing-err')
+  if (errEl) errEl.innerHTML = ''
+  try {
+    const period = +document.getElementById('firing-period').value || 30
+    const r = await apiPost(`/api/coverage/sync-rule-firing?period_days=${period}`, {})
+    if (r.message) {
+      if (errEl) errEl.innerHTML = `<div class="p-3 bg-amber-950/60 ring-1 ring-amber-700/50 rounded-xl text-sm text-amber-300 mb-4">&#9888; ${esc(r.message)}</div>`
+    } else {
+      if (errEl) {
+        errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ring-emerald-700/50 rounded-xl text-sm text-emerald-300 mb-4">&#x2713; Synced ${r.synced} rules over ${r.period_days}d</div>`
+        setTimeout(() => { errEl.innerHTML = '' }, 4000)
+      }
+      loadFiringStatus()
+    }
+  } catch(e) {
+    if (errEl) errEl.innerHTML = errBox(e.message)
+  } finally { setBtn('btn-sync-firing', false, 'Sync Alert Firing Status') }
+}
+
+async function loadFiringStatus() {
+  const summaryEl = document.getElementById('firing-summary')
+  const tableEl = document.getElementById('firing-table')
+  if (!summaryEl || !tableEl) return
+  try {
+    const data = await apiGet('/api/coverage/rule-firing-cache')
+    const s = data.summary
+
+    if (!data.rules || data.rules.length === 0) {
+      summaryEl.innerHTML = ''
+      tableEl.innerHTML = `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-6 text-center text-sm text-slate-500">
+        No firing data cached yet. Click <strong class="text-slate-300">Sync Alert Firing Status</strong> to query the SDL.
+      </div>`
+      return
+    }
+
+    summaryEl.innerHTML = `
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        ${statCard('Rules Monitored', s.rules_monitored, 'text-gray-200')}
+        ${statCard(`Fired in ${s.period_days}d`, s.fired_in_period, 'text-emerald-400')}
+        ${statCard('Never Fired', s.never_fired, s.never_fired > 0 ? 'text-amber-400' : 'text-gray-500')}
+      </div>`
+
+    const top20 = data.rules.slice(0, 20)
+    const rows = top20.map((r, i) => {
+      const badge = r.alert_count > 0
+        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">Active</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-900/50 text-amber-300 border-amber-700">Silent</span>`
+      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
+        <td class="py-2.5 px-4 font-mono text-xs text-gray-200">${esc(r.rule_name)}</td>
+        <td class="py-2.5 px-4 text-xs text-slate-300 tabular-nums">${r.alert_count.toLocaleString()}</td>
+        <td class="py-2.5 px-4">${badge}</td>
+      </tr>`
+    }).join('')
+
+    tableEl.innerHTML = `
+      <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Rule Name</th>
+            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Alerts (${s.period_days}d)</th>
+            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${s.checked_at ? `<p class="text-xs text-slate-600 mt-2">Last synced: ${new Date(s.checked_at).toLocaleString()}</p>` : ''}`
+  } catch(e) {
+    if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
+  }
+}
+
 // ── Router ────────────────────────────────────────────────────────────────
 
 function set(html) { document.getElementById('main').innerHTML = html }
@@ -1411,6 +1640,7 @@ function route() {
   else if (h === '#/ingest')     { updateNav('ingest');     renderIngest()     }
   else if (h === '#/quality')    { updateNav('quality');    renderQuality()    }
   else if (h === '#/onboarding') { updateNav('onboarding'); renderOnboarding() }
+  else if (h === '#/threat')     { updateNav('threat');     renderThreat()     }
   else if (h === '#/settings')   { updateNav('settings');   renderSettings()   }
   else                           { updateNav('home');       renderHome()       }
 }

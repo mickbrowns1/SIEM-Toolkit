@@ -4,12 +4,69 @@ from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime
-from db import get_db, ParsedRule, ParserField, ActiveSource
+from db import get_db, ParsedRule, ParserField, ActiveSource, RuleFiringCache
 from services import s1_client, rule_parser
 
 DETECTIONS_FILE = os.environ.get("DETECTIONS_FILE", "/app/data/detections.json")
 
 router = APIRouter()
+
+
+def _extract_mitre(rule: dict) -> tuple[list[str], list[dict]]:
+    """Extract (tactics, techniques) from a raw S1 rule dict.
+    Handles multiple field name conventions across S1 API versions."""
+    tactics: list[str] = []
+    techniques: list[dict] = []
+
+    for key in ("tactic", "tactics", "mitreTactic", "mitreTactics", "attack.tactic"):
+        val = rule.get(key)
+        if isinstance(val, str) and val:
+            tactics.extend(v.strip() for v in val.split(",") if v.strip())
+        elif isinstance(val, list):
+            for v in val:
+                if isinstance(v, str) and v:
+                    tactics.append(v.strip())
+                elif isinstance(v, dict):
+                    n = v.get("name") or v.get("tactic") or ""
+                    if n:
+                        tactics.append(n.strip())
+
+    for key in ("technique", "techniques", "mitreTechnique", "mitreTechniques",
+                "attack.technique", "mitreAttack"):
+        val = rule.get(key)
+        if isinstance(val, str) and val:
+            for part in val.split(","):
+                part = part.strip()
+                if not part:
+                    continue
+                if part.startswith("T") and len(part) >= 2 and part[1:5].replace(".", "").isdigit():
+                    tid, _, tname = part.partition(" - ")
+                    techniques.append({"id": tid.strip(), "name": tname.strip() or tid.strip()})
+                else:
+                    techniques.append({"id": "", "name": part})
+        elif isinstance(val, list):
+            for v in val:
+                if isinstance(v, str) and v.strip():
+                    part = v.strip()
+                    if part.startswith("T") and len(part) >= 5 and part[1:5].replace(".", "").isdigit():
+                        techniques.append({"id": part, "name": part})
+                    else:
+                        techniques.append({"id": "", "name": part})
+                elif isinstance(v, dict):
+                    tid = v.get("id") or v.get("techniqueId") or v.get("technique_id") or ""
+                    tname = v.get("name") or v.get("technique") or v.get("techniqueName") or tid
+                    if tid or tname:
+                        techniques.append({"id": str(tid).strip(), "name": str(tname).strip()})
+
+    seen_ids: set = set()
+    unique_techniques = []
+    for t in techniques:
+        key_t = t["id"] or t["name"]
+        if key_t not in seen_ids:
+            seen_ids.add(key_t)
+            unique_techniques.append(t)
+
+    return list(dict.fromkeys(tactics)), unique_techniques
 
 
 def _star_query_texts(rule: dict) -> list[str]:
@@ -94,12 +151,17 @@ def _import_from_api_rules(db, rules: list) -> int:
         seen_ids.add(rule_id)
 
         sources = rule.get("sources") or []
+        tactics, techniques = _extract_mitre(rule)
         db.add(ParsedRule(
             rule_id=rule_id,
             name=rule.get("name", "unnamed"),
             rule_type="library",
             fields_used=[],          # API rules don't expose field-level info
-            raw=json.dumps({"data_sources": sources}),
+            raw=json.dumps({
+                "data_sources": sources,
+                "tactics": tactics,
+                "techniques": techniques,
+            }),
         ))
         loaded += 1
         if loaded % 500 == 0:
@@ -142,12 +204,17 @@ def _import_detections(db, detections_file: str) -> int:
             continue
         seen_ids.add(rule_id)
 
+        tactics, techniques = _extract_mitre(rule)
         db.add(ParsedRule(
             rule_id=rule_id,
             name=rule.get("name", "unnamed"),
             rule_type="library",
             fields_used=list(all_fields),
-            raw=json.dumps({"data_sources": list(set(data_sources))}),
+            raw=json.dumps({
+                "data_sources": list(set(data_sources)),
+                "tactics": tactics,
+                "techniques": techniques,
+            }),
         ))
         loaded += 1
         if loaded % 500 == 0:
@@ -561,6 +628,12 @@ def get_coverage_map(db: Session = Depends(get_db)):
     parser_fields_rows = db.query(ParserField).all()
     rules = db.query(ParsedRule).all()
 
+    firing_cache: dict[str, int] = {
+        row.rule_name: row.alert_count
+        for row in db.query(RuleFiringCache).all()
+    }
+    firing_cache_populated = len(firing_cache) > 0
+
     # parser_name → set of field names (for field count display)
     parser_index: dict[str, set] = {}
     for pf in parser_fields_rows:
@@ -675,7 +748,11 @@ def get_coverage_map(db: Session = Depends(get_db)):
         else:
             needed_count += 1  # stub_parser and parser_needed both count as needing work
 
-        rules_for_src: list = [r for r in rule_by_source.get(src.source_name, []) if r["type"] == "library"]
+        rules_for_src: list = [
+            {**r, "alert_count": firing_cache.get(r["rule"], 0)}
+            for r in rule_by_source.get(src.source_name, [])
+            if r["type"] == "library"
+        ]
 
         # Close-match suggestions — shown when there are no library rules for this source.
         close_matches: list = []
@@ -779,6 +856,7 @@ def get_coverage_map(db: Session = Depends(get_db)):
             "unlabelled_events": _unlabelled_event_count,
             "parsers_loaded": len(parser_index),
             "rules_loaded": len(rules),
+            "firing_cache_populated": firing_cache_populated,
         },
         "sources": sources_out,
         "synced_at": synced_at,
@@ -792,6 +870,175 @@ def get_stub_parsers():
     Used by Parser Quality — Attributes Missing section. Independent of active sources."""
     _, stubs = _build_parser_ds_index()
     return {"stubs": stubs, "count": len(stubs)}
+
+
+@router.get("/mitre")
+def get_mitre_coverage(db: Session = Depends(get_db)):
+    rules = db.query(ParsedRule).filter_by(rule_type="library").all()
+
+    TACTIC_ORDER = [
+        "Reconnaissance", "Resource Development", "Initial Access", "Execution",
+        "Persistence", "Privilege Escalation", "Defense Evasion", "Credential Access",
+        "Discovery", "Lateral Movement", "Collection", "Command and Control",
+        "Exfiltration", "Impact", "Uncategorized",
+    ]
+
+    tactic_map: dict[str, dict] = {}
+    no_mitre_count = 0
+
+    for rule in rules:
+        try:
+            raw_data = json.loads(rule.raw) if rule.raw else {}
+        except Exception:
+            raw_data = {}
+        tactics = raw_data.get("tactics", [])
+        techniques = raw_data.get("techniques", [])
+        if not tactics and not techniques:
+            no_mitre_count += 1
+            continue
+        if not tactics:
+            tactics = ["Uncategorized"]
+        for tactic in tactics:
+            if tactic not in tactic_map:
+                tactic_map[tactic] = {"techniques": {}, "rule_count": 0}
+            tactic_map[tactic]["rule_count"] += 1
+            for tech in techniques:
+                key_t = tech["id"] or tech["name"]
+                if key_t:
+                    tactic_map[tactic]["techniques"][key_t] = tech["name"] or key_t
+
+    def _tactic_sort_key(name: str) -> int:
+        try:
+            return TACTIC_ORDER.index(name)
+        except ValueError:
+            return len(TACTIC_ORDER)
+
+    tactics_out = []
+    total_techniques = 0
+    for tactic_name in sorted(tactic_map.keys(), key=_tactic_sort_key):
+        tech_dict = tactic_map[tactic_name]["techniques"]
+        techniques_list = [
+            {"id": k if (k.startswith("T") and len(k) >= 4) else "", "name": v}
+            for k, v in sorted(tech_dict.items())
+        ]
+        total_techniques += len(techniques_list)
+        tactics_out.append({
+            "tactic": tactic_name,
+            "rule_count": tactic_map[tactic_name]["rule_count"],
+            "technique_count": len(techniques_list),
+            "techniques": techniques_list,
+        })
+
+    return {
+        "tactics": tactics_out,
+        "total_rules": len(rules),
+        "rules_with_mitre": len(rules) - no_mitre_count,
+        "rules_without_mitre": no_mitre_count,
+        "total_techniques": total_techniques,
+        "tactic_count": len(tactics_out),
+    }
+
+
+@router.post("/sync-rule-firing")
+async def sync_rule_firing(period_days: int = 30, db: Session = Depends(get_db)):
+    """Query SDL for alert/threat counts by rule name over the last N days.
+    Tries multiple field name patterns until one returns results.
+    Caches results in rule_firing_cache table."""
+    from datetime import datetime, timedelta
+    now = datetime.utcnow()
+    from_dt = (now - timedelta(days=period_days)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    to_dt = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+    FIRING_QUERIES = [
+        ("| filter ruleName != '' | group alerts=count() by ruleName | sort -alerts | limit 2000", "ruleName"),
+        ("| filter threatInfo.detectionEngineRule.name != '' | group alerts=count() by threatInfo.detectionEngineRule.name | sort -alerts | limit 2000", "threatInfo.detectionEngineRule.name"),
+        ("| filter alert.ruleName != '' | group alerts=count() by alert.ruleName | sort -alerts | limit 2000", "alert.ruleName"),
+    ]
+
+    result_rows = []
+    query_used = None
+    errors = []
+
+    for query, name_field in FIRING_QUERIES:
+        try:
+            result = await s1_client.run_powerquery(query, from_dt, to_dt, max_count=10_000_000)
+            err = result.get("error") if isinstance(result, dict) else None
+            if err:
+                errors.append(f"{name_field}: {err}")
+                continue
+            rows = result.get("events", [])
+            if rows:
+                # Remap the name field to a standard key
+                result_rows = [{"rule_name": r.get(name_field, r.get("ruleName", "")), "alerts": r.get("alerts", 0)} for r in rows]
+                result_rows = [r for r in result_rows if r["rule_name"]]
+                if result_rows:
+                    query_used = query
+                    break
+        except Exception as e:
+            errors.append(f"{name_field}: {e}")
+            continue
+
+    if not result_rows:
+        return {
+            "synced": 0,
+            "period_days": period_days,
+            "rules_with_alerts": 0,
+            "query_used": None,
+            "message": "No alert data found. Errors: " + "; ".join(errors) if errors else "No alert data found — SDL may not have alert events in this time window.",
+        }
+
+    # Upsert into cache
+    checked_at = datetime.utcnow()
+    for row in result_rows:
+        existing = db.query(RuleFiringCache).filter_by(rule_name=row["rule_name"]).first()
+        if existing:
+            existing.alert_count = row["alerts"]
+            existing.period_days = period_days
+            existing.checked_at = checked_at
+        else:
+            db.add(RuleFiringCache(
+                rule_name=row["rule_name"],
+                alert_count=row["alerts"],
+                period_days=period_days,
+                checked_at=checked_at,
+            ))
+    db.commit()
+
+    return {
+        "synced": len(result_rows),
+        "period_days": period_days,
+        "rules_with_alerts": len(result_rows),
+        "query_used": query_used,
+    }
+
+
+@router.get("/rule-firing-cache")
+def get_rule_firing_cache(db: Session = Depends(get_db)):
+    """Return all cached rule firing data sorted by alert count descending."""
+    rows = db.query(RuleFiringCache).order_by(RuleFiringCache.alert_count.desc()).all()
+    total_rules = db.query(ParsedRule).filter_by(rule_type="library").count()
+    fired = [r for r in rows if r.alert_count > 0]
+    never_fired_count = total_rules - len(fired)
+    period_days = rows[0].period_days if rows else 30
+    checked_at = rows[0].checked_at.isoformat() if rows and rows[0].checked_at else None
+    return {
+        "rules": [
+            {
+                "rule_name": r.rule_name,
+                "alert_count": r.alert_count,
+                "period_days": r.period_days,
+                "checked_at": r.checked_at.isoformat() if r.checked_at else None,
+            }
+            for r in rows
+        ],
+        "summary": {
+            "rules_monitored": len(rows),
+            "fired_in_period": len(fired),
+            "never_fired": never_fired_count,
+            "period_days": period_days,
+            "checked_at": checked_at,
+        },
+    }
 
 
 @router.delete("/reset")

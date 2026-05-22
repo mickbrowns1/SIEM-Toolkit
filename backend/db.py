@@ -48,6 +48,15 @@ class IngestSnapshot(Base):
     recorded_at = Column(DateTime, default=datetime.utcnow)
 
 
+class RuleFiringCache(Base):
+    __tablename__ = "rule_firing_cache"
+    id = Column(Integer, primary_key=True)
+    rule_name = Column(String, unique=True, index=True)
+    alert_count = Column(Integer, default=0)
+    period_days = Column(Integer, default=30)
+    checked_at = Column(DateTime, default=datetime.utcnow)
+
+
 def get_db():
     db = SessionLocal()
     try:
