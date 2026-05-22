@@ -924,11 +924,15 @@ function renderOnboarding() {
           <h2 class="text-base font-semibold text-white">Source Onboarding Pipeline</h2>
           <p class="text-xs text-slate-500 mt-0.5">6-stage lifecycle tracker for every active data source</p>
         </div>
+        <button onclick="obTogglePipeline()" id="btn-ob-pipeline-toggle"
+          class="text-xs text-slate-400 hover:text-gray-200 px-3 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 transition-colors">
+          Show Pipeline
+        </button>
       </div>
-      <div id="ob-pipeline-stats" class="flex gap-3 mb-4">
+      <div id="ob-pipeline-stats" class="flex flex-wrap gap-3">
         <div class="px-3 py-1.5 rounded-full bg-slate-800/60 text-xs text-slate-500 animate-pulse">Loading…</div>
       </div>
-      <div id="ob-pipeline-table"><p class="text-slate-600 text-sm animate-pulse text-center py-6">Loading pipeline…</p></div>
+      <div id="ob-pipeline-table" class="hidden mt-4"></div>
     </div>
 
     <!-- Steps -->
@@ -971,20 +975,21 @@ function obCopy() {
 
 let _obShowCompleted = false
 
+let _obPipelineData = null
+
 async function loadOnboardingPipeline() {
   const statsEl = document.getElementById('ob-pipeline-stats')
   const tableEl = document.getElementById('ob-pipeline-table')
   if (!statsEl || !tableEl) return
   try {
     const data = await apiGet('/api/coverage/onboarding-status')
+    _obPipelineData = data
     const sources = data.sources || []
 
-    if (statsEl) {
-      statsEl.innerHTML = `
-        <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Fully Onboarded: ${data.fully_onboarded}</span>
-        <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${data.in_progress}</span>
-        <span class="px-3 py-1.5 rounded-full bg-slate-800/60 ring-1 ring-white/5 text-xs text-slate-400">○ Not Started: ${data.not_started}</span>`
-    }
+    statsEl.innerHTML = `
+      <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Fully Onboarded: ${data.fully_onboarded}</span>
+      <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${data.in_progress}</span>
+      <span class="px-3 py-1.5 rounded-full bg-slate-800/60 ring-1 ring-white/5 text-xs text-slate-400">○ Not Started: ${data.not_started}</span>`
 
     const STAGE_ICONS = ['📥','📄','⚙️','🏷️','🔍','🔔']
     const incomplete = sources.filter(s => s.completed < s.total)
@@ -1044,6 +1049,16 @@ async function loadOnboardingPipeline() {
   } catch(e) {
     if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
   }
+}
+
+let _obPipelineVisible = false
+
+function obTogglePipeline() {
+  _obPipelineVisible = !_obPipelineVisible
+  const tableEl = document.getElementById('ob-pipeline-table')
+  const btn = document.getElementById('btn-ob-pipeline-toggle')
+  if (tableEl) tableEl.classList.toggle('hidden', !_obPipelineVisible)
+  if (btn) btn.textContent = _obPipelineVisible ? 'Hide Pipeline' : 'Show Pipeline'
 }
 
 function obToggleCompleted() {
