@@ -104,17 +104,14 @@ function barChart(rows, labelKey, valueKey) {
     const bh = Math.max(2, Math.floor((val / max) * chartH))
     const x = padL + i * (chartW / rows.length) + (chartW / rows.length - bw) / 2
     const y = padT + chartH - bh
-    // If label looks like a date (YYYY-MM-DD), show MM/DD; otherwise truncate to 16 chars
+    // If label looks like a date (YYYY-MM-DD), show MM/DD; otherwise truncate to 10 chars
     const rawLbl = String(r[labelKey] || '')
-    const isDate = /^\d{4}-\d{2}-\d{2}$/.test(rawLbl)
-    const lbl = esc(isDate ? rawLbl.slice(5, 10) : (rawLbl.length > 16 ? rawLbl.slice(0, 15) + '…' : rawLbl))
+    const lbl = esc(/^\d{4}-\d{2}-\d{2}$/.test(rawLbl) ? rawLbl.slice(5, 10) : rawLbl.slice(0, 10))
     // value label on top of bar
     const valLbl = val >= 1000 ? (val/1000).toFixed(1)+'k' : val
-    return `<g><title>${esc(rawLbl)}: ${val.toLocaleString()}</title>
-            <rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#barGrad)" rx="2"/>
+    return `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#barGrad)" rx="2"/>
             <text x="${x + bw/2}" y="${y - 4}" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="500">${valLbl}</text>
-            <text x="${x + bw/2}" y="${H - 6}" text-anchor="middle" fill="#6b7280" font-size="9">${lbl}</text>
-            </g>`
+            <text x="${x + bw/2}" y="${H - 6}" text-anchor="middle" fill="#6b7280" font-size="9">${lbl}</text>`
   }).join('')
 
   return `<svg viewBox="0 0 ${W} ${H}" class="w-full">${defs}${ticks}${bars}</svg>`
@@ -657,62 +654,15 @@ function cvSetFilter(f) {
     const firingPopulated = cvData?.summary?.firing_cache_populated === true
     if (s.rule_count) {
       if (firingPopulated) {
-        const rules = s.rules || []
-        // Group rules by product label
-        const groups = {}
-        for (const r of rules) {
-          const prod = r.product || 'SentinelOne'
-          if (!groups[prod]) groups[prod] = []
-          groups[prod].push(r)
-        }
-        const prodNames = Object.keys(groups).sort((a, b) => {
-          // Put SentinelOne last (it's the generic catch-all)
-          if (a === 'SentinelOne') return 1
-          if (b === 'SentinelOne') return -1
-          return a.localeCompare(b)
+        const ruleItems = (s.rules || []).map(r => {
+          const alerts = r.alert_count || 0
+          if (alerts > 0) {
+            return `<span class="text-purple-400 font-mono text-xs" title="${esc(r.rule)} — ${alerts} alerts">${esc(r.rule.length > 40 ? r.rule.slice(0, 40) + '…' : r.rule)} <span class="text-emerald-500">(${alerts})</span></span>`
+          } else {
+            return `<span class="text-amber-400 font-mono text-xs" title="${esc(r.rule)} — no alerts in period">&#9888; ${esc(r.rule.length > 40 ? r.rule.slice(0, 40) + '…' : r.rule)}</span>`
+          }
         })
-        const groupHtml = prodNames.map(prod => {
-          const prodRules = groups[prod]
-          const fired = prodRules.filter(r => (r.alert_count || 0) > 0).length
-          const headerColor = fired === prodRules.length ? 'text-emerald-400' : fired > 0 ? 'text-amber-400' : 'text-slate-400'
-          const uid = 'dg_' + Math.random().toString(36).slice(2)
-          const ruleItems = prodRules.map(r => {
-            const alerts = r.alert_count || 0
-            const label = r.rule.length > 50 ? r.rule.slice(0, 50) + '…' : r.rule
-            if (alerts > 0) {
-              return `<div class="text-purple-300 font-mono text-xs leading-5 pl-2 border-l border-white/10" title="${esc(r.rule)} — ${alerts} alerts">${esc(label)} <span class="text-emerald-500">(${alerts})</span></div>`
-            } else {
-              return `<div class="text-amber-400 font-mono text-xs leading-5 pl-2 border-l border-white/10" title="${esc(r.rule)} — no alerts in period">&#9888; ${esc(label)}</div>`
-            }
-          }).join('')
-          return `<div class="mb-1">
-            <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="flex items-center gap-1 text-xs font-medium ${headerColor} hover:opacity-80 transition-opacity w-full text-left">
-              <svg class="w-3 h-3 shrink-0 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-              ${esc(prod)} <span class="text-slate-500 font-normal ml-1">${prodRules.length} rule${prodRules.length !== 1 ? 's' : ''}</span>
-            </button>
-            <div class="hidden mt-0.5 space-y-0.5">${ruleItems}</div>
-          </div>`
-        }).join('')
-        return `<div class="text-xs">${groupHtml}</div>`
-      }
-      // Firing cache not populated — show grouped product summary (no expand)
-      const rules = s.rules || []
-      if (rules.length > 0) {
-        const groups = {}
-        for (const r of rules) {
-          const prod = r.product || 'SentinelOne'
-          groups[prod] = (groups[prod] || 0) + 1
-        }
-        const prodNames = Object.keys(groups).sort((a, b) => {
-          if (a === 'SentinelOne') return 1
-          if (b === 'SentinelOne') return -1
-          return a.localeCompare(b)
-        })
-        if (prodNames.length === 1) {
-          return `<span class="text-purple-400 font-medium">${s.rule_count}</span> <span class="text-slate-500 text-xs">rules · ${esc(prodNames[0])}</span>`
-        }
-        const breakdown = prodNames.map(p => `<span class="text-slate-400">${esc(p)}: ${groups[p]}</span>`).join('<br>')
-        return `<span class="text-purple-400 font-medium">${s.rule_count}</span> <span class="text-slate-500 text-xs">rules</span><br><span class="text-xs text-slate-600">${breakdown}</span>`
+        return `<div class="space-y-0.5">${ruleItems.join('')}</div>`
       }
       return `<span class="text-purple-400 font-medium">${s.rule_count}</span> rule${s.rule_count !== 1 ? 's' : ''}`
     }
@@ -903,17 +853,17 @@ async function igLoad() {
       const name = r['dataSource.name'] || r.name || 'unknown'
       const evts = r.events || 0
       return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        <td class="py-2.5 px-3 font-mono text-xs text-gray-200 break-all" title="${esc(name)}">${esc(name)}</td>
-        <td class="py-2.5 px-3 text-right text-gray-300 tabular-nums whitespace-nowrap">${evts.toLocaleString()}</td>
-        <td class="py-2.5 px-3 text-right text-slate-400 tabular-nums whitespace-nowrap">${(evts/1e6*0.5).toFixed(3)}</td>
+        <td class="py-2.5 px-1 font-mono text-xs text-gray-200">${esc(name)}</td>
+        <td class="py-2.5 px-1 text-right text-gray-300 tabular-nums">${evts.toLocaleString()}</td>
+        <td class="py-2.5 px-1 text-right text-slate-400 tabular-nums">${(evts/1e6*0.5).toFixed(3)}</td>
       </tr>`
     })
     document.getElementById('ig-sources').innerHTML = rows.length ? `
       <table class="w-full text-sm">
         <thead><tr class="text-left text-slate-500 border-b border-white/5">
-          <th class="pb-2.5 px-3 font-medium text-xs uppercase tracking-wide">Source</th>
-          <th class="pb-2.5 px-3 text-right font-medium text-xs uppercase tracking-wide whitespace-nowrap">Events</th>
-          <th class="pb-2.5 px-3 text-right font-medium text-xs uppercase tracking-wide whitespace-nowrap">Est. GB</th>
+          <th class="pb-2.5 font-medium text-xs uppercase tracking-wide">Source</th>
+          <th class="pb-2.5 text-right font-medium text-xs uppercase tracking-wide">Events</th>
+          <th class="pb-2.5 text-right font-medium text-xs uppercase tracking-wide">Est. GB</th>
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
       </table>` : `<p class="text-slate-500 text-sm">No data in this period.</p>`
@@ -2106,57 +2056,30 @@ async function loadFiringStatus() {
         ${statCard('Never Fired', s.never_fired, s.never_fired > 0 ? 'text-amber-400' : 'text-gray-500')}
       </div>`
 
-    // Group rules by product
-    const firingGroups = {}
-    for (const r of data.rules) {
-      const prod = r.product || 'SentinelOne'
-      if (!firingGroups[prod]) firingGroups[prod] = []
-      firingGroups[prod].push(r)
-    }
-    const firingProdNames = Object.keys(firingGroups).sort((a, b) => {
-      if (a === 'SentinelOne') return 1
-      if (b === 'SentinelOne') return -1
-      return a.localeCompare(b)
-    })
-
-    const groupSections = firingProdNames.map(prod => {
-      const rules = firingGroups[prod]
-      const firedCount = rules.filter(r => r.alert_count > 0).length
-      const headerColor = firedCount === rules.length ? 'text-emerald-400' : firedCount > 0 ? 'text-amber-400' : 'text-slate-400'
-      const uid = 'fg_' + prod.replace(/[^a-z0-9]/gi, '_')
-      const rows = rules.map((r, i) => {
-        const badge = r.alert_count > 0
-          ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">Active</span>`
-          : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-900/50 text-amber-300 border-amber-700">Silent</span>`
-        return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-          <td class="py-2.5 px-4 font-mono text-xs text-gray-200">${esc(r.rule_name)}</td>
-          <td class="py-2.5 px-4 text-xs text-slate-300 tabular-nums">${r.alert_count.toLocaleString()}</td>
-          <td class="py-2.5 px-4">${badge}</td>
-        </tr>`
-      }).join('')
-      return `<div class="mb-3">
-        <button onclick="document.getElementById('${uid}').classList.toggle('hidden')"
-          class="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-white/5 rounded-t-xl text-left transition-colors">
-          <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-          <span class="font-medium text-sm ${headerColor}">${esc(prod)}</span>
-          <span class="text-slate-500 text-xs">${rules.length} rule${rules.length !== 1 ? 's' : ''}</span>
-          <span class="ml-auto text-xs ${firedCount > 0 ? 'text-emerald-500' : 'text-slate-600'}">${firedCount} active · ${rules.length - firedCount} silent</span>
-        </button>
-        <div id="${uid}" class="hidden overflow-x-auto ring-1 ring-white/5 rounded-b-xl">
-          <table class="w-full text-sm">
-            <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
-              <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Rule Name</th>
-              <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Alerts (${s.period_days}d)</th>
-              <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </div>`
+    const top20 = data.rules.slice(0, 20)
+    const rows = top20.map((r, i) => {
+      const badge = r.alert_count > 0
+        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">Active</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-900/50 text-amber-300 border-amber-700">Silent</span>`
+      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
+        <td class="py-2.5 px-4 font-mono text-xs text-gray-200">${esc(r.rule_name)}</td>
+        <td class="py-2.5 px-4 text-xs text-slate-300 tabular-nums">${r.alert_count.toLocaleString()}</td>
+        <td class="py-2.5 px-4">${badge}</td>
+      </tr>`
     }).join('')
 
-    tableEl.innerHTML = groupSections +
-      (s.checked_at ? `<p class="text-xs text-slate-600 mt-2">Last synced: ${new Date(s.checked_at).toLocaleString()}</p>` : '')
+    tableEl.innerHTML = `
+      <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+        <table class="w-full text-sm">
+          <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Rule Name</th>
+            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Alerts (${s.period_days}d)</th>
+            <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${s.checked_at ? `<p class="text-xs text-slate-600 mt-2">Last synced: ${new Date(s.checked_at).toLocaleString()}</p>` : ''}`
   } catch(e) {
     if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
   }
@@ -2206,24 +2129,7 @@ function depMapRender() {
     no_parser:'bg-amber-900/50 text-amber-300 border-amber-700',
   }
 
-  // Group by product
-  const depGroups = {}
-  for (const r of display) {
-    const prod = r.product || 'SentinelOne'
-    if (!depGroups[prod]) depGroups[prod] = []
-    depGroups[prod].push(r)
-  }
-  const depProdNames = Object.keys(depGroups).sort((a, b) => {
-    // At-risk products first, then alphabetical, SentinelOne last
-    const aRisk = depGroups[a].some(r => r.at_risk)
-    const bRisk = depGroups[b].some(r => r.at_risk)
-    if (aRisk !== bRisk) return aRisk ? -1 : 1
-    if (a === 'SentinelOne') return 1
-    if (b === 'SentinelOne') return -1
-    return a.localeCompare(b)
-  })
-
-  const makeDepRows = (groupRules) => groupRules.map((r, i) => {
+  const rows = display.map((r, i) => {
     const statusBadge = r.at_risk
       ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-red-900/50 text-red-300 border-red-700">⚠ At Risk</span>`
       : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">✓ Covered</span>`
@@ -2246,35 +2152,19 @@ function depMapRender() {
     </tr>`
   }).join('')
 
-  const groupedHtml = depProdNames.map(prod => {
-    const groupRules = depGroups[prod]
-    const atRiskCount = groupRules.filter(r => r.at_risk).length
-    const headerColor = atRiskCount > 0 ? 'text-red-400' : 'text-emerald-400'
-    const uid = 'dep_' + prod.replace(/[^a-z0-9]/gi, '_')
-    return `<div class="mb-3">
-      <button onclick="document.getElementById('${uid}').classList.toggle('hidden')"
-        class="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-900/80 hover:bg-slate-900 border border-white/5 rounded-t-xl text-left transition-colors">
-        <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-        <span class="font-medium text-sm ${headerColor}">${esc(prod)}</span>
-        <span class="text-slate-500 text-xs">${groupRules.length} rule${groupRules.length !== 1 ? 's' : ''}</span>
-        ${atRiskCount > 0 ? `<span class="ml-auto text-xs text-red-400">⚠ ${atRiskCount} at risk</span>` : `<span class="ml-auto text-xs text-emerald-500">✓ all covered</span>`}
-      </button>
-      <div id="${uid}" class="hidden overflow-x-auto ring-1 ring-white/5 rounded-b-xl">
-        <table class="w-full text-sm">
-          <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
-            <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Rule</th>
-            <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Required Sources</th>
-            <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
-            <th class="py-2.5 px-4 font-medium text-xs uppercase tracking-wide">Alerts</th>
-          </tr></thead>
-          <tbody>${makeDepRows(groupRules)}</tbody>
-        </table>
-      </div>
-    </div>`
-  }).join('')
-
-  tableEl.innerHTML = groupedHtml +
-    `<p class="text-xs text-slate-600 mt-2">Source badges: <span class="text-emerald-400">green</span> = healthy · <span class="text-red-400">red</span> = inactive · <span class="text-amber-400">amber</span> = no parser</p>`
+  tableEl.innerHTML = `
+    <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+      <table class="w-full text-sm">
+        <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+          <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Rule Name</th>
+          <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Required Sources</th>
+          <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
+          <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Alerts</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-600 mt-2">Source badges: <span class="text-emerald-400">green</span> = healthy · <span class="text-red-400">red</span> = inactive · <span class="text-amber-400">amber</span> = no parser</p>`
 }
 
 // ── Router ────────────────────────────────────────────────────────────────
