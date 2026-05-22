@@ -159,8 +159,8 @@ function renderHome() {
       </div>
     </div>
 
-    <div id="home-stats" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-      ${[0,1,2,3,4].map(() => `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse"><div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div><div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div></div>`).join('')}
+    <div id="home-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      ${[0,1,2,3].map(() => `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse"><div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div><div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div></div>`).join('')}
     </div>
     <div id="home-uncovered" class="hidden mb-8"></div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -186,7 +186,6 @@ async function homeLoadStats() {
     const total = sources.length
     const covered  = sources.filter(s => s.status === 'covered').length
     const stub     = sources.filter(s => s.status === 'stub_parser').length
-    const needed   = sources.filter(s => s.status === 'parser_needed').length
     const pct = total ? Math.round(covered / total * 100) : 0
     const pctColor = pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'
 
@@ -194,40 +193,32 @@ async function homeLoadStats() {
       ${homeStat(pct + '%', 'Parser Coverage', pctColor)}
       ${homeStat(total.toLocaleString(), 'Active Sources', 'text-blue-400')}
       ${homeStat(covered.toLocaleString(), 'Covered', 'text-emerald-400')}
-      ${homeStat(stub.toLocaleString(), 'Incomplete Parser', stub > 0 ? 'text-amber-400' : 'text-gray-500')}
-      ${homeStat(needed.toLocaleString(), 'Need Parser', needed > 0 ? 'text-red-400' : 'text-gray-500')}`
+      ${homeStat(stub.toLocaleString(), 'Incomplete Parser', stub > 0 ? 'text-amber-400' : 'text-gray-500')}`
 
-    // Top sources needing attention — stub parsers (amber) and no parser (red)
-    const uncovered = sources
-      .filter(s => s.status === 'parser_needed' || s.status === 'stub_parser')
+    // Top incomplete parsers by volume
+    const incomplete = sources
+      .filter(s => s.status === 'stub_parser')
       .sort((a, b) => (b.event_count || 0) - (a.event_count || 0))
       .slice(0, 5)
 
-    if (uncovered.length) {
-      const rows = uncovered.map((s, i) => {
-        const badge = s.status === 'stub_parser'
-          ? `<span class="text-amber-400 text-xs">⚠ Incomplete</span>`
-          : `<span class="text-red-400 text-xs">✗ No Parser</span>`
-        return `
+    if (incomplete.length) {
+      const rows = incomplete.map((s, i) => `
         <tr class="${i % 2 === 1 ? 'bg-white/[0.02]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
           <td class="py-2 pr-4 font-mono text-xs text-gray-200">
             <a href="#/quality" onclick="queueQualitySource('${esc(s.source_name)}')" class="hover:text-purple-400 cursor-pointer transition-colors">${esc(s.source_name)}</a>
           </td>
           <td class="py-2 text-xs text-slate-400">${(s.event_count || 0).toLocaleString()} events</td>
-          <td class="py-2 text-xs">${badge}</td>
-        </tr>`
-      }).join('')
+        </tr>`).join('')
 
       document.getElementById('home-uncovered').classList.remove('hidden')
       document.getElementById('home-uncovered').innerHTML = `
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-red-900/30 rounded-xl p-5 border-t-2 border-t-red-600/40">
-          <h2 class="text-sm font-semibold text-white mb-1">Top Sources Needing Attention</h2>
-          <p class="text-xs text-slate-500 mb-3">Highest-volume sources with no parser or an incomplete parser — click to inspect in Parser Quality.</p>
+        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-amber-900/30 rounded-xl p-5 border-t-2 border-t-amber-600/40">
+          <h2 class="text-sm font-semibold text-white mb-1">Top Incomplete Parsers</h2>
+          <p class="text-xs text-slate-500 mb-3">Highest-volume sources with a parser file missing <code class="bg-slate-800 px-1 rounded">dataSource.name</code> — click to inspect in Parser Quality.</p>
           <table class="w-full">
             <thead><tr class="text-left text-slate-500 border-b border-white/5">
               <th class="pb-2 pr-4 text-xs font-medium">Source</th>
               <th class="pb-2 text-xs font-medium">Volume</th>
-              <th class="pb-2 text-xs font-medium">Status</th>
             </tr></thead>
             <tbody>${rows}</tbody>
           </table>
@@ -238,8 +229,7 @@ async function homeLoadStats() {
       ${homeStat('—', 'Parser Coverage', 'text-gray-600')}
       ${homeStat('—', 'Active Sources', 'text-gray-600')}
       ${homeStat('—', 'Covered', 'text-gray-600')}
-      ${homeStat('—', 'Incomplete Parser', 'text-gray-600')}
-      ${homeStat('—', 'Need Parser', 'text-gray-600')}`
+      ${homeStat('—', 'Incomplete Parser', 'text-gray-600')}`
   }
 }
 
