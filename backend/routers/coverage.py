@@ -906,14 +906,15 @@ def get_coverage_map(db: Session = Depends(get_db)):
 
     synced_at = active_sources[0].synced_at.isoformat() if active_sources else None
 
-    stub_count = sum(1 for s in sources_out if s["status"] == "stub_parser")
+    # stub_parsers = total parser FILES missing dataSource.name (independent of active sources)
+    stub_file_count = len(stub_parsers)
 
     return {
         "summary": {
             "active_sources": len(active_sources),
             "covered": covered_count,
             "parser_needed": needed_count,
-            "stub_parsers": stub_count,
+            "stub_parsers": stub_file_count,
             "unlabelled_events": _unlabelled_event_count,
             "parsers_loaded": len(parser_index),
             "rules_loaded": len(rules),
