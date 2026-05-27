@@ -2185,7 +2185,6 @@ function depMapRender() {
 
   let rules = _depMapData.rules || []
   if (atRiskOnly) rules = rules.filter(r => r.at_risk)
-  // When filtering, also hide no-source rules unless explicitly showing all
   const display = atRiskOnly ? rules : rules.filter(r => !r.no_sources).concat(rules.filter(r => r.no_sources))
 
   if (!display.length) {
@@ -2199,27 +2198,70 @@ function depMapRender() {
     no_parser:'bg-amber-900/50 text-amber-300 border-amber-700',
   }
 
-  const rows = display.map((r, i) => {
-    const statusBadge = r.at_risk
-      ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-red-900/50 text-red-300 border-red-700">⚠ At Risk</span>`
-      : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">✓ Covered</span>`
+  // Group by product; at-risk products sort first
+  const byProduct = {}
+  for (const r of display) {
+    const prod = r.product || 'SentinelOne'
+    if (!byProduct[prod]) byProduct[prod] = []
+    byProduct[prod].push(r)
+  }
+  const sortedProducts = Object.keys(byProduct).sort((a, b) => {
+    const aRisk = byProduct[a].some(r => r.at_risk) ? 0 : 1
+    const bRisk = byProduct[b].some(r => r.at_risk) ? 0 : 1
+    return aRisk - bRisk || a.localeCompare(b)
+  })
 
-    const sourceBadges = r.no_sources
-      ? `<span class="text-xs text-slate-600">—</span>`
-      : r.sources.map(s =>
-          `<span class="px-1.5 py-0.5 rounded border text-xs font-mono ${SOURCE_STATUS_STYLE[s.status] || ''}" title="${s.status}">${esc(s.source)}</span>`
-        ).join(' ')
+  const sections = sortedProducts.map(product => {
+    const prodRules = byProduct[product]
+    const atRiskCount = prodRules.filter(r => r.at_risk).length
+    const uid = 'depmap-' + product.replace(/[^a-z0-9]/gi, '_')
 
-    const alerts = r.generated_alerts != null
-      ? `<span class="text-xs tabular-nums ${r.generated_alerts > 0 ? 'text-emerald-400' : 'text-slate-600'}">${r.generated_alerts.toLocaleString()}</span>`
-      : `<span class="text-xs text-slate-700">—</span>`
+    const headerBg = atRiskCount > 0 ? 'bg-red-950/40 hover:bg-red-950/60' : 'bg-slate-900/60 hover:bg-slate-800/60'
+    const countBadge = atRiskCount > 0
+      ? `<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-900/50 text-red-300 border-red-700">⚠ ${atRiskCount} at risk</span>`
+      : `<span class="ml-2 text-xs text-slate-500">${prodRules.length} rule${prodRules.length !== 1 ? 's' : ''}</span>`
 
-    return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-      <td class="py-2.5 px-4 text-xs text-gray-200 font-medium max-w-xs">${esc(r.rule)}</td>
-      <td class="py-2.5 px-4 text-xs"><div class="flex flex-wrap gap-1">${sourceBadges}</div></td>
-      <td class="py-2.5 px-4">${statusBadge}</td>
-      <td class="py-2.5 px-4">${alerts}</td>
-    </tr>`
+    const rows = prodRules.map((r, i) => {
+      const statusBadge = r.at_risk
+        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-red-900/50 text-red-300 border-red-700">⚠ At Risk</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">✓ Covered</span>`
+
+      const sourceBadges = r.no_sources
+        ? `<span class="text-xs text-slate-600">—</span>`
+        : r.sources.map(s =>
+            `<span class="px-1.5 py-0.5 rounded border text-xs font-mono ${SOURCE_STATUS_STYLE[s.status] || ''}" title="${s.status}">${esc(s.source)}</span>`
+          ).join(' ')
+
+      const alerts = r.generated_alerts != null
+        ? `<span class="text-xs tabular-nums ${r.generated_alerts > 0 ? 'text-emerald-400' : 'text-slate-600'}">${r.generated_alerts.toLocaleString()}</span>`
+        : `<span class="text-xs text-slate-700">—</span>`
+
+      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
+        <td class="py-2.5 px-4 text-xs text-gray-200 font-medium max-w-xs">${esc(r.rule)}</td>
+        <td class="py-2.5 px-4 text-xs"><div class="flex flex-wrap gap-1">${sourceBadges}</div></td>
+        <td class="py-2.5 px-4">${statusBadge}</td>
+        <td class="py-2.5 px-4">${alerts}</td>
+      </tr>`
+    }).join('')
+
+    return `
+      <tr class="${headerBg} border-b border-white/5 cursor-pointer select-none transition-colors"
+          onclick="toggleDepMapProduct('${uid}')">
+        <td colspan="4" class="py-2.5 px-4">
+          <div class="flex items-center gap-2">
+            <svg id="${uid}-chev" class="w-3.5 h-3.5 text-slate-400 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+            <span class="text-xs font-semibold text-slate-200 uppercase tracking-wide">${esc(product)}</span>
+            ${countBadge}
+          </div>
+        </td>
+      </tr>
+      <tr id="${uid}" class="hidden"><td colspan="4" class="p-0">
+        <table class="w-full text-sm">
+          <tbody>${rows}</tbody>
+        </table>
+      </td></tr>`
   }).join('')
 
   tableEl.innerHTML = `
@@ -2231,10 +2273,18 @@ function depMapRender() {
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Alerts</th>
         </tr></thead>
-        <tbody>${rows}</tbody>
+        <tbody>${sections}</tbody>
       </table>
     </div>
     <p class="text-xs text-slate-600 mt-2">Source badges: <span class="text-emerald-400">green</span> = healthy · <span class="text-red-400">red</span> = inactive · <span class="text-amber-400">amber</span> = no parser</p>`
+}
+
+function toggleDepMapProduct(uid) {
+  const body = document.getElementById(uid)
+  const chev = document.getElementById(uid + '-chev')
+  if (!body) return
+  const hidden = body.classList.toggle('hidden')
+  if (chev) chev.style.transform = hidden ? '' : 'rotate(180deg)'
 }
 
 // ── Router ────────────────────────────────────────────────────────────────
