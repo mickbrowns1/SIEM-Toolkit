@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SIEM Toolkit</title>
+  <title>Parallax</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-gray-100 h-screen flex overflow-hidden font-sans">
@@ -11,10 +11,23 @@
   <aside class="w-56 shrink-0 bg-gradient-to-b from-slate-900 to-gray-900 border-r border-white/5 flex flex-col">
     <div class="p-4 border-b border-white/5">
       <div class="flex items-center gap-2">
-        <div class="w-6 h-6 rounded bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-xs font-bold text-white shadow-lg shadow-purple-900/40">S1</div>
-        <span class="font-semibold text-sm text-white tracking-tight">SIEM Toolkit</span>
+        <svg width="24" height="30" viewBox="0 0 37 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sl0" x1="36.5" y1="13.6" x2="18.5" y2="4.5" gradientUnits="userSpaceOnUse"><stop stop-color="#4500B6"/><stop offset="1" stop-color="#6100FF"/></linearGradient>
+            <linearGradient id="sl1" x1="36.5" y1="31.8" x2="18.5" y2="40.9" gradientUnits="userSpaceOnUse"><stop stop-color="#4500B6"/><stop offset="1" stop-color="#6100FF"/></linearGradient>
+            <linearGradient id="sl2" x1="0.4" y1="13.6" x2="18.5" y2="4.5" gradientUnits="userSpaceOnUse"><stop stop-color="#6100FF"/><stop offset="1" stop-color="#4500B6"/></linearGradient>
+            <linearGradient id="sl3" x1="0.4" y1="31.8" x2="18.5" y2="40.9" gradientUnits="userSpaceOnUse"><stop stop-color="#6100FF"/><stop offset="1" stop-color="#4500B6"/></linearGradient>
+            <linearGradient id="sl4" x1="28.2" y1="27.6" x2="8.6" y2="17.8" gradientUnits="userSpaceOnUse"><stop stop-color="#6100FF"/><stop offset="1" stop-color="#4500B6"/></linearGradient>
+          </defs>
+          <path d="M18.4663 9.10208L36.6313 18.1838V9.08337L18.4663 0V9.10208Z" fill="url(#sl0)"/>
+          <path d="M18.4663 36.308L36.6313 27.2246V36.3267L18.4663 45.4101V36.308Z" fill="url(#sl1)"/>
+          <path d="M18.4663 9.10208L0.30127 18.1838V9.08337L18.4663 0V9.10208Z" fill="url(#sl2)"/>
+          <path d="M18.4663 36.308L0.30127 27.2246V36.3267L18.4663 45.4101V36.308Z" fill="url(#sl3)"/>
+          <path d="M4.83936 20.4411L22.9908 29.5176L32.0878 24.9658L13.9448 15.8943L4.83936 20.4411Z" fill="url(#sl4)"/>
+        </svg>
+        <span class="font-semibold text-sm text-white tracking-tight">Parallax</span>
       </div>
-      <p class="text-xs text-slate-500 mt-1">demo.sentinelone.net</p>
+      <p class="text-xs text-slate-500 mt-1" id="sidebar-tenant">…</p>
     </div>
     <nav class="flex-1 p-3 space-y-0.5">
       <a href="#/" data-page="home"       class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Overview</a>
@@ -123,7 +136,7 @@ function renderHome() {
   set(`<div class="p-8 max-w-5xl">
     <div class="mb-6">
       <h1 class="text-2xl font-extrabold text-white tracking-tight">SIEM Engineering Toolkit</h1>
-      <p class="text-slate-400 mt-1 text-sm">SentinelOne AI-SIEM · demo.sentinelone.net</p>
+      <p class="text-slate-400 mt-1 text-sm">Parallax · demo.sentinelone.net</p>
     </div>
 
     <!-- Health Score Card -->
@@ -133,38 +146,18 @@ function renderHome() {
           <div class="text-center md:text-left">
             <div class="text-xs text-slate-500 uppercase tracking-widest mb-1 font-medium">Tenant Health Score</div>
             <div id="health-score-value" class="text-6xl font-black text-slate-600 leading-none">—</div>
-            <div id="health-score-delta" class="text-sm mt-2 text-slate-600"></div>
           </div>
           <div class="flex-1 grid grid-cols-3 gap-3" id="health-components">
             <div class="bg-slate-800/50 rounded-lg p-3 text-center animate-pulse"><div class="h-4 bg-slate-700 rounded mb-1"></div><div class="h-3 bg-slate-700/60 rounded"></div></div>
             <div class="bg-slate-800/50 rounded-lg p-3 text-center animate-pulse"><div class="h-4 bg-slate-700 rounded mb-1"></div><div class="h-3 bg-slate-700/60 rounded"></div></div>
             <div class="bg-slate-800/50 rounded-lg p-3 text-center animate-pulse"><div class="h-4 bg-slate-700 rounded mb-1"></div><div class="h-3 bg-slate-700/60 rounded"></div></div>
           </div>
-          <div class="flex flex-col items-center gap-1">
-            <div class="text-xs text-slate-600 uppercase tracking-wide mb-1">30-day trend</div>
-            <div id="health-sparkline"><svg viewBox="0 0 200 40" class="w-48 h-10"><line x1="0" y1="20" x2="200" y2="20" stroke="#374151" stroke-width="1" stroke-dasharray="4"/></svg></div>
-          </div>
         </div>
       </div>
     </div>
 
     <div id="home-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse">
-        <div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div>
-        <div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div>
-      </div>
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse">
-        <div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div>
-        <div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div>
-      </div>
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse">
-        <div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div>
-        <div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div>
-      </div>
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse">
-        <div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div>
-        <div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div>
-      </div>
+      ${[0,1,2,3].map(() => `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse"><div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div><div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div></div>`).join('')}
     </div>
     <div id="home-uncovered" class="hidden mb-8"></div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -188,8 +181,8 @@ async function homeLoadStats() {
     const r = await apiGet('/api/coverage/map')
     const sources = (r.sources || []).filter(s => !(EXCLUDED_SOURCES.has(s.source_name) && !s.unlabelled))
     const total = sources.length
-    const covered = sources.filter(s => s.status === 'covered').length
-    const needed = sources.filter(s => s.status === 'parser_needed').length
+    const covered  = sources.filter(s => s.status === 'covered').length
+    const stub     = r.summary?.stub_parsers ?? sources.filter(s => s.status === 'stub_parser').length
     const pct = total ? Math.round(covered / total * 100) : 0
     const pctColor = pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'
 
@@ -197,16 +190,16 @@ async function homeLoadStats() {
       ${homeStat(pct + '%', 'Parser Coverage', pctColor)}
       ${homeStat(total.toLocaleString(), 'Active Sources', 'text-blue-400')}
       ${homeStat(covered.toLocaleString(), 'Covered', 'text-emerald-400')}
-      ${homeStat(needed.toLocaleString(), 'Need Parser', needed > 0 ? 'text-red-400' : 'text-gray-500')}`
+      ${homeStat(stub.toLocaleString(), 'Incomplete Parser', stub > 0 ? 'text-amber-400' : 'text-gray-500')}`
 
-    // Top uncovered sources by volume
-    const uncovered = sources
-      .filter(s => s.status === 'parser_needed')
+    // Top incomplete parsers by volume
+    const incomplete = sources
+      .filter(s => s.status === 'stub_parser')
       .sort((a, b) => (b.event_count || 0) - (a.event_count || 0))
       .slice(0, 5)
 
-    if (uncovered.length) {
-      const rows = uncovered.map((s, i) => `
+    if (incomplete.length) {
+      const rows = incomplete.map((s, i) => `
         <tr class="${i % 2 === 1 ? 'bg-white/[0.02]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
           <td class="py-2 pr-4 font-mono text-xs text-gray-200">
             <a href="#/quality" onclick="queueQualitySource('${esc(s.source_name)}')" class="hover:text-purple-400 cursor-pointer transition-colors">${esc(s.source_name)}</a>
@@ -216,9 +209,9 @@ async function homeLoadStats() {
 
       document.getElementById('home-uncovered').classList.remove('hidden')
       document.getElementById('home-uncovered').innerHTML = `
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-red-900/30 rounded-xl p-5 border-t-2 border-t-red-600/40">
-          <h2 class="text-sm font-semibold text-white mb-1">Top Sources Needing a Parser</h2>
-          <p class="text-xs text-slate-500 mb-3">Highest-volume sources with no parser running — click to inspect in Parser Quality.</p>
+        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-amber-900/30 rounded-xl p-5 border-t-2 border-t-amber-600/40">
+          <h2 class="text-sm font-semibold text-white mb-1">Top Incomplete Parsers</h2>
+          <p class="text-xs text-slate-500 mb-3">Highest-volume sources with a parser file missing <code class="bg-slate-800 px-1 rounded">dataSource.name</code> — click to inspect in Parser Quality.</p>
           <table class="w-full">
             <thead><tr class="text-left text-slate-500 border-b border-white/5">
               <th class="pb-2 pr-4 text-xs font-medium">Source</th>
@@ -233,7 +226,7 @@ async function homeLoadStats() {
       ${homeStat('—', 'Parser Coverage', 'text-gray-600')}
       ${homeStat('—', 'Active Sources', 'text-gray-600')}
       ${homeStat('—', 'Covered', 'text-gray-600')}
-      ${homeStat('—', 'Need Parser', 'text-gray-600')}`
+      ${homeStat('—', 'Incomplete Parser', 'text-gray-600')}`
   }
 }
 
@@ -260,11 +253,7 @@ function homeCard(href, title, desc, cta, grad) {
 
 async function loadHealthScore() {
   try {
-    const [h, snaps] = await Promise.all([
-      apiGet('/api/coverage/health'),
-      apiGet('/api/coverage/snapshots?limit=30'),
-    ])
-
+    const h = await apiGet('/api/coverage/health')
     const score = h.health_score ?? 0
     const scoreColor = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-amber-400' : 'text-red-400'
 
@@ -272,16 +261,6 @@ async function loadHealthScore() {
     if (scoreEl) {
       scoreEl.textContent = score
       scoreEl.className = `text-6xl font-black leading-none ${scoreColor}`
-    }
-
-    const deltaEl = document.getElementById('health-score-delta')
-    if (deltaEl && h.delta_from_previous != null) {
-      const d = h.delta_from_previous
-      const dColor = d >= 0 ? 'text-emerald-400' : 'text-red-400'
-      const dSign = d >= 0 ? '+' : ''
-      deltaEl.innerHTML = `<span class="${dColor} font-semibold">${dSign}${d}</span> <span class="text-slate-600">from last sync</span>`
-    } else if (deltaEl) {
-      deltaEl.innerHTML = '<span class="text-slate-600 text-xs">No previous snapshot</span>'
     }
 
     const compEl = document.getElementById('health-components')
@@ -301,20 +280,6 @@ async function loadHealthScore() {
         compCard('Parser Coverage', comps.parser_coverage.value, comps.parser_coverage.weight) +
         compCard('MITRE Coverage',  comps.mitre_coverage.value,  comps.mitre_coverage.weight) +
         compCard('Rule Firing Rate', comps.rule_firing.value,    comps.rule_firing.weight)
-    }
-
-    // Sparkline SVG
-    const spEl = document.getElementById('health-sparkline')
-    if (spEl && snaps.snapshots?.length >= 2) {
-      const pts = snaps.snapshots.map(s => s.health_score)
-      const W = 200, H = 40, pad = 2
-      const minV = 0, maxV = 100
-      const xs = pts.map((_, i) => pad + i * (W - 2 * pad) / (pts.length - 1))
-      const ys = pts.map(v => H - pad - ((v - minV) / (maxV - minV)) * (H - 2 * pad))
-      const points = xs.map((x, i) => `${x.toFixed(1)},${ys[i].toFixed(1)}`).join(' ')
-      spEl.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="w-48 h-10">
-        <polyline points="${points}" fill="none" stroke="rgb(139,92,246)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
-      </svg>`
     }
   } catch(e) {
     // Health score load failure is non-critical — leave placeholder visible
@@ -389,7 +354,8 @@ async function loadSDLParsers() {
     } else if (cf.skipped) {
       parts.push(`console sync skipped (${cf.skipped})`)
     }
-    parts.push(`${res.loaded} parser${res.loaded !== 1 ? 's' : ''} loaded`)
+    const parserCount = res.parser_count ?? res.loaded
+    parts.push(`${parserCount} parser${parserCount !== 1 ? 's' : ''} loaded`)
     if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
     const msg = `✓ ${parts.join(' · ')}`
     const hasErrors = res.errors?.length || cf.failed?.length
@@ -511,18 +477,64 @@ async function cvSyncAll() {
   setBtn('btn-sync-all', true, 'Syncing…')
   const errEl = document.getElementById('cv-err')
   if (errEl) errEl.innerHTML = ''
+  const results = []
+  let hasError = false
+
   try {
     // 1. SDL Parsers
     setBtn('btn-sync-all', true, 'Syncing Parsers…')
-    await loadSDLParsers()
+    try {
+      const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
+      const cf = res.console_fetch || {}
+      const dbg = cf.debug || {}
+      let parts = []
+      if (cf.fetched > 0) parts.push(`fetched ${cf.fetched} from console`)
+      else if (cf.skipped) parts.push(`console sync skipped (${cf.skipped})`)
+      const parserCount = res.parser_count ?? res.loaded
+      parts.push(`${parserCount} parser${parserCount !== 1 ? 's' : ''} loaded`)
+      if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
+
+      const pathsListed = dbg.paths_listed || []
+      const debugHtml = pathsListed.length > 0
+        ? `<details class="mt-2"><summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-200">SDL returned ${dbg.paths_found ?? pathsListed.length} path${pathsListed.length !== 1 ? 's' : ''} — click to inspect</summary>
+            <div class="mt-1 max-h-48 overflow-y-auto bg-slate-950 rounded-lg p-2 text-xs font-mono text-gray-300 space-y-0.5">${pathsListed.map(p => `<div class="truncate">${esc(p)}</div>`).join('')}</div>
+           </details>`
+        : (dbg.paths_found === 0 ? `<div class="text-xs text-amber-400 mt-1">⚠ SDL returned 0 paths — check SDL_CONFIG_READ_KEY permissions</div>` : '')
+
+      results.push(`<div class="text-emerald-300"><span class="font-medium">SDL Parsers</span> · ✓ ${parts.join(' · ')}${debugHtml}</div>`)
+    } catch(e) {
+      results.push(`<div class="text-red-400"><span class="font-medium">SDL Parsers</span> · ✗ ${esc(e.message)}</div>`)
+      hasError = true
+    }
+
     // 2. Detection Library
     setBtn('btn-sync-all', true, 'Syncing Library…')
-    await syncLibrary()
+    try {
+      const r = await apiPost('/api/coverage/load-detections', {})
+      results.push(`<div class="text-emerald-300"><span class="font-medium">Detection Library</span> · ✓ ${r.loaded} rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`)
+    } catch(e) {
+      results.push(`<div class="text-red-400"><span class="font-medium">Detection Library</span> · ✗ ${esc(e.message)}</div>`)
+      hasError = true
+    }
+
     // 3. Live Sources
     setBtn('btn-sync-all', true, 'Syncing Sources…')
-    await cvSyncSources()
+    try {
+      const days = document.getElementById('sync-days')?.value || 7
+      const r = await apiPost(`/api/coverage/sync-sources?days=${days}`, {})
+      results.push(`<div class="text-emerald-300"><span class="font-medium">Live Sources</span> · ✓ ${r.synced} sources synced</div>`)
+    } catch(e) {
+      results.push(`<div class="text-red-400"><span class="font-medium">Live Sources</span> · ✗ ${esc(e.message)}</div>`)
+      hasError = true
+    }
+
+    await cvLoad()
   } finally {
     setBtn('btn-sync-all', false, 'Sync All')
+    if (errEl && results.length) {
+      const borderColor = hasError ? 'ring-red-700/50' : 'ring-emerald-700/50'
+      errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ${borderColor} rounded-xl text-sm mb-4 space-y-1">${results.join('')}</div>`
+    }
   }
 }
 
@@ -556,9 +568,9 @@ async function cvLoad() {
           <div class="text-2xl font-bold text-emerald-400">${s.covered}</div>
           <div class="text-xs text-slate-500 mt-1">Covered</div>
         </div>
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-red-500 shadow-sm">
-          <div class="text-2xl font-bold text-red-400">${s.parser_needed}</div>
-          <div class="text-xs text-slate-500 mt-1">Incomplete Parser${s.stub_parsers > 0 ? `<span class="ml-1 text-amber-600">(${s.stub_parsers} Missing Attributes)</span>` : ''}</div>
+        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-amber-500 shadow-sm">
+          <div class="text-2xl font-bold ${s.stub_parsers > 0 ? 'text-amber-400' : 'text-gray-500'}">${s.stub_parsers}</div>
+          <div class="text-xs text-slate-500 mt-1">Incomplete Parser${s.stub_parsers > 0 ? `<br><span class="text-amber-600/80">missing dataSource.name</span>` : ''}</div>
         </div>
         <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-purple-500 shadow-sm">
           <div class="text-2xl font-bold text-purple-400">${s.parsers_loaded}</div>
@@ -929,7 +941,7 @@ function renderOnboarding() {
           Show Pipeline
         </button>
       </div>
-      <div id="ob-pipeline-stats" class="flex flex-wrap gap-3">
+      <div id="ob-pipeline-stats" class="flex flex-col gap-2">
         <div class="px-3 py-1.5 rounded-full bg-slate-800/60 text-xs text-slate-500 animate-pulse">Loading…</div>
       </div>
       <div id="ob-pipeline-table" class="hidden mt-4"></div>
@@ -985,17 +997,29 @@ async function loadOnboardingPipeline() {
     _obPipelineData = data
     const sources = data.sources || []
 
+    // Split into two groups first so we can compute per-pipeline stats
+    const withRules    = sources.filter(s => s.has_detection_rules)
+    const withoutRules = sources.filter(s => !s.has_detection_rules)
+
+    const fullDone    = withRules.filter(s => s.completed === s.total).length
+    const fullProg    = withRules.filter(s => s.completed > 0 && s.completed < s.total).length
+    const partialDone = withoutRules.filter(s => s.completed === s.total).length
+    const partialProg = withoutRules.filter(s => s.completed > 0 && s.completed < s.total).length
+
     statsEl.innerHTML = `
-      <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Fully Onboarded: ${data.fully_onboarded}</span>
-      <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${data.in_progress}</span>
-      <span class="px-3 py-1.5 rounded-full bg-slate-800/60 ring-1 ring-white/5 text-xs text-slate-400">○ Not Started: ${data.not_started}</span>`
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1.5 rounded-full bg-purple-900/40 ring-1 ring-purple-700/40 text-xs text-purple-300">Full Pipeline: ${withRules.length} sources</span>
+        <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Complete: ${fullDone}</span>
+        <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${fullProg}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1.5 rounded-full bg-slate-700/40 ring-1 ring-slate-600/40 text-xs text-slate-300">Partial Pipeline: ${withoutRules.length} sources</span>
+        <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Complete: ${partialDone}</span>
+        <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${partialProg}</span>
+      </div>`
 
     const STAGE_ICONS = ['📥','📄','⚙️','🏷️','🔍','🔔']
     const STAGE_LABELS = ['Data Received','Parser File','Parser Active','Source Labeled','Detection Rules','Rules Firing']
-
-    // Split into two groups
-    const withRules    = sources.filter(s => s.has_detection_rules)
-    const withoutRules = sources.filter(s => !s.has_detection_rules)
 
     function renderRow(s, i) {
       const stageDots = s.stages.map((st, si) => {
@@ -1165,8 +1189,8 @@ function renderSettingsForm(fields, envExists, envPath) {
         <div class="text-green-400">docker-compose up -d --build</div>
       </div>
       <div class="pt-1 space-y-1 text-xs text-gray-500">
-        <p><span class="text-gray-400 font-medium">S1_BASE_URL / S1_API_TOKEN</span> — SentinelOne console URL and service user API token. Generate the token at <span class="text-gray-400">Settings → Users → Service Users</span>.</p>
-        <p><span class="text-gray-400 font-medium">SDL_XDR_URL / SDL_LOG_READ_KEY</span> — Singularity Data Lake credentials for PowerQuery. Found at <span class="text-gray-400">Settings → Integrations → Data Lake API Keys</span>.</p>
+        <p><span class="text-gray-400 font-medium">S1_BASE_URL / S1_API_TOKEN</span> — SentinelOne console URL and service user API token. Generate the token at <span class="text-gray-400">Policies and settings → Users → Service Users</span>.</p>
+        <p><span class="text-gray-400 font-medium">SDL_XDR_URL / SDL_LOG_READ_KEY</span> — Singularity Data Lake credentials for PowerQuery. Found at <span class="text-gray-400">Policies and settings → Integrations → Data Lake API Keys</span>.</p>
         <p><span class="text-gray-400 font-medium">SDL_CONFIG_READ_KEY</span> — SDL API key with <em>Manage config files</em> permission. Required for <strong class="text-gray-400">Sync SDL Parsers</strong> to auto-fetch parsers from <code>/logParsers/</code> in the console.</p>
         <p><span class="text-gray-400 font-medium">ANTHROPIC_API_KEY</span> — Optional. Required only for the Onboarding AI assistant. Get it at <span class="text-gray-400">console.anthropic.com</span>.</p>
       </div>
@@ -2192,6 +2216,17 @@ function route() {
 
 window.addEventListener('hashchange', route)
 route()
+
+// Populate sidebar tenant label from configured S1_BASE_URL
+;(async () => {
+  try {
+    const cfg = await apiGet('/api/settings/config')
+    const fields = cfg.fields || cfg
+    const url = (fields.find(c => c.key === 'S1_BASE_URL') || {}).value || ''
+    const el = document.getElementById('sidebar-tenant')
+    if (el) el.textContent = url ? url.replace(/^https?:\/\//, '') : 'not configured'
+  } catch { /* leave as-is */ }
+})()
 </script>
 </body>
 </html>

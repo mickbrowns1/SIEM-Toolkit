@@ -22,9 +22,9 @@ PRESET_QUERIES = [
     {"label": "Top sources by volume",       "query": "| group events=count() by dataSource.name | sort -events | limit 25"},
     {"label": "Unlabelled events",            "query": "!(dataSource.name = *) !(source = 'scalyr') | group events=count() by source | sort -events | limit 25"},
     {"label": "Events by type",               "query": "| group events=count() by dataSource.name, event.type | sort -events | limit 50"},
-    {"label": "Failed logins",                "query": "| filter event.type = 'Logon' | filter event.outcome = 'FAILED' | group count() by user.name, src.ip | sort -count() | limit 25"},
-    {"label": "Process executions",           "query": "| filter event.type = 'Process Creation' | group count() by src.process.name | sort -count() | limit 25"},
-    {"label": "Network connections by dest",  "query": "| filter event.type = 'IP Connect' | group count() by dst.ip | sort -count() | limit 25"},
+    {"label": "Failed logins",                "query": "| filter event.type = 'Logon' | filter event.outcome = 'FAILED' | group count=count() by user.name, src.ip | sort -count | limit 25"},
+    {"label": "Process executions",           "query": "| filter event.type = 'Process Creation' | group count=count() by src.process.name | sort -count | limit 25"},
+    {"label": "Network connections by dest",  "query": "| filter event.type = 'IP Connect' | group count=count() by dst.ip | sort -count | limit 25"},
     {"label": "Rules firing (30d)",           "query": "| filter ruleName != '' | group alerts=count() by ruleName | sort -alerts | limit 50"},
 ]
 

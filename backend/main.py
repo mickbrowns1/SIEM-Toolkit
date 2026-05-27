@@ -42,7 +42,7 @@ with engine.connect() as _conn:
     ))
     _conn.commit()
 
-app = FastAPI(title="SIEM Toolkit", version="1.0.0")
+app = FastAPI(title="Parallax", version="1.0.0")
 
 
 @app.on_event("startup")

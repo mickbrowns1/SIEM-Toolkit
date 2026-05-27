@@ -440,8 +440,15 @@ async def load_parsers_from_sdl(db: Session = Depends(get_db)):
             errors.append({"parser": entry.name, "error": str(e)})
 
     db.commit()
+
+    # Count actual parser files (those with a formats: section) separately from
+    # the raw file count which includes dashboards, saved-searches, etc.
+    ds_idx, stubs_idx = _build_parser_ds_index()
+    parser_count = len(ds_idx) + len(stubs_idx)
+
     return {
-        "loaded": len(loaded),
+        "loaded": len(loaded),          # all files indexed into DB
+        "parser_count": parser_count,   # files that are real parsers (have formats: block)
         "parsers": loaded,
         "errors": errors,
         "console_fetch": fetch_result,
@@ -881,16 +888,17 @@ def get_coverage_map(db: Session = Depends(get_db)):
 
     synced_at = active_sources[0].synced_at.isoformat() if active_sources else None
 
-    stub_count = sum(1 for s in sources_out if s["status"] == "stub_parser")
+    # stub_parsers = total parser FILES missing dataSource.name (independent of active sources)
+    stub_file_count = len(stub_parsers)
 
     return {
         "summary": {
             "active_sources": len(active_sources),
             "covered": covered_count,
             "parser_needed": needed_count,
-            "stub_parsers": stub_count,
+            "stub_parsers": stub_file_count,
             "unlabelled_events": _unlabelled_event_count,
-            "parsers_loaded": len(parser_index),
+            "parsers_loaded": len(ds_index) + len(stub_parsers),
             "rules_loaded": len(rules),
             "firing_cache_populated": firing_cache_populated,
         },
@@ -935,6 +943,7 @@ def get_mitre_coverage(db: Session = Depends(get_db)):
         if not tactics:
             tactics = ["Uncategorized"]
         for tactic in tactics:
+            tactic = _normalise_tactic(tactic)
             if tactic not in tactic_map:
                 tactic_map[tactic] = {"techniques": {}, "rule_count": 0}
             tactic_map[tactic]["rule_count"] += 1
@@ -1082,6 +1091,29 @@ def get_rule_firing_cache(db: Session = Depends(get_db)):
     }
 
 
+# SentinelOne uses non-standard tactic names in some rules.
+# Map them to the closest standard ATT&CK Enterprise tactic.
+_TACTIC_NORMALISE: dict[str, str] = {
+    "defense impairment": "Defense Evasion",
+    "stealth":            "Defense Evasion",
+    "evasion":            "Defense Evasion",
+    "c2":                 "Command and Control",
+    "c&c":                "Command and Control",
+}
+
+_ATTACK_TACTICS = {
+    "Reconnaissance", "Resource Development", "Initial Access", "Execution",
+    "Persistence", "Privilege Escalation", "Defense Evasion", "Credential Access",
+    "Discovery", "Lateral Movement", "Collection", "Command and Control",
+    "Exfiltration", "Impact",
+}
+
+
+def _normalise_tactic(tactic: str) -> str:
+    """Return the canonical ATT&CK Enterprise tactic name."""
+    return _TACTIC_NORMALISE.get(tactic.strip().lower(), tactic.strip())
+
+
 def _compute_health(db) -> dict:
     """Compute current health score from DB state.
 
@@ -1114,15 +1146,17 @@ def _compute_health(db) -> dict:
         if tactics or techniques:
             rules_with_mitre += 1
         for t in tactics:
-            if t and t != "Uncategorized":
-                covered_tactics.add(t)
+            if t and t.lower() != "uncategorized":
+                covered_tactics.add(_normalise_tactic(t))
         for tech in techniques:
             k = tech.get("id") or tech.get("name")
             if k:
                 covered_techniques.add(k)
-    tactics_covered = len(covered_tactics)
+    # Only count tactics that are actual ATT&CK Enterprise tactics
+    recognised_tactics = covered_tactics & _ATTACK_TACTICS
+    tactics_covered = len(recognised_tactics)
     techniques_covered = len(covered_techniques)
-    mitre_pct = round((tactics_covered / TOTAL_TACTICS * 100), 1)
+    mitre_pct = round(min(tactics_covered / TOTAL_TACTICS * 100, 100.0), 1)
 
     # --- Rule firing ---
     firing_rows = db.query(RuleFiringCache).all()
