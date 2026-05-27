@@ -664,20 +664,56 @@ function cvSetFilter(f) {
 
   function detectionsCell(s) {
     const firingPopulated = cvData?.summary?.firing_cache_populated === true
+
     if (s.rule_count) {
-      if (firingPopulated) {
-        const ruleItems = (s.rules || []).map(r => {
-          const alerts = r.alert_count || 0
-          if (alerts > 0) {
-            return `<span class="text-purple-400 font-mono text-xs" title="${esc(r.rule)} — ${alerts} alerts">${esc(r.rule.length > 40 ? r.rule.slice(0, 40) + '…' : r.rule)} <span class="text-emerald-500">(${alerts})</span></span>`
-          } else {
-            return `<span class="text-amber-400 font-mono text-xs" title="${esc(r.rule)} — no alerts in period">&#9888; ${esc(r.rule.length > 40 ? r.rule.slice(0, 40) + '…' : r.rule)}</span>`
-          }
-        })
-        return `<div class="space-y-0.5">${ruleItems.join('')}</div>`
+      const rules = s.rules || []
+      const uid = 'det-' + s.source_name.replace(/[^a-z0-9]/gi, '_')
+
+      // Build summary line: "12 rules" with silent warning if any never fired
+      const silentCount = firingPopulated ? rules.filter(r => (r.alert_count || 0) === 0).length : 0
+      const silentBadge = (firingPopulated && silentCount > 0)
+        ? ` <span class="text-amber-500 text-xs">⚠ ${silentCount} silent</span>`
+        : ''
+      const summary = `<span class="text-purple-400 font-medium">${s.rule_count}</span> rule${s.rule_count !== 1 ? 's' : ''}${silentBadge}`
+
+      if (!rules.length) {
+        // No rule detail from backend — just show count, no toggle
+        return summary
       }
-      return `<span class="text-purple-400 font-medium">${s.rule_count}</span> rule${s.rule_count !== 1 ? 's' : ''}`
+
+      // Group rules by product
+      const byProduct = {}
+      for (const r of rules) {
+        const prod = r.product || 'SentinelOne'
+        if (!byProduct[prod]) byProduct[prod] = []
+        byProduct[prod].push(r)
+      }
+
+      // Build expanded rule list: one rule per line, grouped by product
+      let listHtml = ''
+      for (const [product, prodRules] of Object.entries(byProduct)) {
+        listHtml += `<div class="mt-1.5 mb-0.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">${esc(product)}</div>`
+        for (const r of prodRules) {
+          const alerts = r.alert_count ?? null
+          if (!firingPopulated || alerts === null) {
+            listHtml += `<div class="text-slate-300 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)}">${esc(r.rule)}</div>`
+          } else if (alerts > 0) {
+            listHtml += `<div class="text-purple-300 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)} — ${alerts} alerts">${esc(r.rule)} <span class="text-emerald-500">(${alerts})</span></div>`
+          } else {
+            listHtml += `<div class="text-amber-400 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)} — never fired">⚠ ${esc(r.rule)}</div>`
+          }
+        }
+      }
+
+      return `<div>
+        <button onclick="toggleDetections('${uid}')" class="flex items-center gap-1.5 hover:opacity-80 transition-opacity text-left">
+          ${summary}
+          <svg id="${uid}-chev" class="w-3 h-3 text-slate-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="${uid}" class="hidden mt-1 pl-1 border-l border-white/10">${listHtml}</div>
+      </div>`
     }
+
     if (s.close_matches && s.close_matches.length) {
       const hints = s.close_matches.map(m =>
         `<span class="text-amber-400">${esc(m.library_name)}</span> <span class="text-gray-600">(${m.rule_count} rules)</span>`
@@ -685,6 +721,14 @@ function cvSetFilter(f) {
       return `<span class="text-gray-700">—</span> <span class="text-amber-600 text-xs" title="dataSource.name mismatch?">⚠ similar: ${hints}</span>`
     }
     return `<span class="text-gray-700">—</span>`
+  }
+
+  function toggleDetections(uid) {
+    const body = document.getElementById(uid)
+    const chev = document.getElementById(uid + '-chev')
+    if (!body) return
+    const open = body.classList.toggle('hidden')
+    if (chev) chev.style.transform = open ? '' : 'rotate(180deg)'
   }
 
   function parserCell(s) {
