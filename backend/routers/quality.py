@@ -8,17 +8,60 @@ import re
 router = APIRouter()
 
 
+PARSERS_DIR = "/app/parsers"
+
+# Files under PARSERS_DIR are populated by syncing from the SDL
+# /api/listFiles + /api/getFile endpoints. SDL stores more than just parsers
+# in the same directory: UEBA analytics tables, saved searches, dashboard
+# configs and a few other types. Showing those in the Parser Test Runner
+# dropdown is confusing and selecting them produces errors.
+#
+# Identify real parsers in two tiers:
+#   1) reject names matching well-known non-parser SDL artefact patterns
+#   2) accept only files whose first 4 KB contains a parser-config marker
+#      (attributes:, patterns:, formats:, patternRefs:, rewrites:, parser:)
+
+_PARSER_MARKER_RE = re.compile(
+    r"^\s*(attributes|patterns|formats|patternRefs|rewrites|parser)\s*[:=]",
+    re.MULTILINE,
+)
+_PARSER_NAME_DENYLIST = re.compile(
+    r"^(ueba[_\-]|searches$|alerts$|.*_baselines?_|.*_features?_|.*_scores?_|"
+    r"bsi[_\-]|.*-overview$|.*[_\-]membership$|.*[_\-]risk$|.*[_\-]smoke[_\-]test$|"
+    r".*[_\-]test[_\-](default|merge|replace|same))",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_parser(path: str, name: str) -> bool:
+    """Return True if a file under PARSERS_DIR is actually a parser config."""
+    if _PARSER_NAME_DENYLIST.match(name):
+        return False
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            head = fh.read(4096)
+    except OSError:
+        return False
+    return bool(_PARSER_MARKER_RE.search(head))
+
+
 @router.get("/parsers")
 def list_parser_files():
-    """List parser filenames available under /app/parsers/ for the Test Runner."""
-    parsers_dir = "/app/parsers"
+    """List parser filenames available under PARSERS_DIR for the Test Runner.
+
+    Filters out non-parser SDL artefacts (UEBA tables, saved searches,
+    dashboards, etc.) so the dropdown only contains files that the Test
+    Runner can actually use.
+    """
     try:
-        names = sorted(
-            e.name for e in os.scandir(parsers_dir)
-            if e.is_file() and not e.name.startswith(".")
-        )
+        entries = [e for e in os.scandir(PARSERS_DIR)
+                   if e.is_file() and not e.name.startswith(".")]
     except FileNotFoundError:
-        names = []
+        return {"parsers": [], "count": 0}
+    names = sorted(
+        e.name for e in entries
+        if _looks_like_parser(e.path, e.name)
+    )
     return {"parsers": names, "count": len(names)}
 
 
