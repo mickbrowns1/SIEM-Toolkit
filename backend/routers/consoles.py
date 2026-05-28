@@ -1,9 +1,40 @@
+import os, shutil
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from db import get_db, ConsoleConfig
+from db import get_db, ConsoleConfig, ActiveSource, ParserField, ParsedRule, RuleFiringCache
 from services import s1_client
+
+PARSERS_DIR = "/app/parsers"
+
+
+def _clear_console_data(db: Session) -> dict:
+    """Wipe all sync data that is specific to a console (sources, parsers, rules, firing cache)
+    and delete fetched parser files from disk. Called when switching active console."""
+    sources_deleted  = db.query(ActiveSource).delete()
+    fields_deleted   = db.query(ParserField).delete()
+    rules_deleted    = db.query(ParsedRule).delete()
+    firing_deleted   = db.query(RuleFiringCache).delete()
+    db.commit()
+
+    # Remove fetched parser files (keep directory itself)
+    files_deleted = 0
+    try:
+        for entry in os.scandir(PARSERS_DIR):
+            if entry.is_file() and not entry.name.startswith("."):
+                os.remove(entry.path)
+                files_deleted += 1
+    except FileNotFoundError:
+        pass
+
+    return {
+        "sources": sources_deleted,
+        "parser_fields": fields_deleted,
+        "rules": rules_deleted,
+        "firing_cache": firing_deleted,
+        "parser_files": files_deleted,
+    }
 
 router = APIRouter()
 
@@ -92,12 +123,16 @@ def add_console(body: AddConsoleBody, db: Session = Depends(get_db)):
 
 @router.post("/{console_id}/activate")
 def activate_console(console_id: int, db: Session = Depends(get_db)):
-    """Set this console as active and update s1_client credentials."""
+    """Set this console as active, update s1_client credentials, and clear stale sync data."""
     c = db.query(ConsoleConfig).filter_by(id=console_id).first()
     if not c:
         raise HTTPException(404, "Console not found")
 
-    # Deactivate all others
+    # Check if we're actually switching (not re-activating the same one)
+    currently_active = db.query(ConsoleConfig).filter_by(is_active=True).first()
+    is_switch = currently_active is None or currently_active.id != console_id
+
+    # Deactivate all others, activate this one
     db.query(ConsoleConfig).update({"is_active": False})
     c.is_active = True
     db.commit()
@@ -112,7 +147,11 @@ def activate_console(console_id: int, db: Session = Depends(get_db)):
         "sdl_pq_timeout": c.sdl_pq_timeout,
     })
 
-    return {"console": _console_out(c)}
+    cleared = None
+    if is_switch:
+        cleared = _clear_console_data(db)
+
+    return {"console": _console_out(c), "cleared": cleared, "needs_sync": is_switch}
 
 
 @router.delete("/{console_id}")
