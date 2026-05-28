@@ -6,10 +6,10 @@
   <title>Parallax</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-gray-100 h-screen flex overflow-hidden font-sans">
+<body class="bg-gray-100 text-gray-900 h-screen flex overflow-hidden font-sans">
 
-  <aside class="w-56 shrink-0 bg-gradient-to-b from-slate-900 to-gray-900 border-r border-white/5 flex flex-col">
-    <div class="p-4 border-b border-white/5">
+  <aside class="w-56 shrink-0 bg-white border-r border-gray-200 flex flex-col">
+    <div class="p-4 border-b border-gray-200">
       <div class="flex items-center gap-2">
         <svg width="24" height="30" viewBox="0 0 37 46" fill="none" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -25,9 +25,9 @@
           <path d="M18.4663 36.308L0.30127 27.2246V36.3267L18.4663 45.4101V36.308Z" fill="url(#sl3)"/>
           <path d="M4.83936 20.4411L22.9908 29.5176L32.0878 24.9658L13.9448 15.8943L4.83936 20.4411Z" fill="url(#sl4)"/>
         </svg>
-        <span class="font-semibold text-sm text-white tracking-tight">Parallax</span>
+        <span class="font-semibold text-sm text-gray-900 tracking-tight">Parallax</span>
       </div>
-      <p class="text-xs text-slate-500 mt-1" id="sidebar-tenant">…</p>
+      <p class="text-xs text-gray-500 mt-1" id="sidebar-tenant">…</p>
     </div>
     <nav class="flex-1 p-3 space-y-0.5">
       <a href="#/" data-page="home"       class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Overview</a>
@@ -41,15 +41,15 @@
       </a>
       <a href="#/threat" data-page="threat" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Threat Coverage</a>
     </nav>
-    <div class="p-3 border-t border-white/5">
-      <a href="#/settings" data-page="settings" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer text-slate-400 hover:bg-white/5 hover:text-gray-100 transition-colors">
+    <div class="p-3 border-t border-gray-200">
+      <a href="#/settings" data-page="settings" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
         Settings
       </a>
     </div>
   </aside>
 
-  <main class="flex-1 overflow-auto bg-gradient-to-br from-slate-950 to-gray-900" id="main"></main>
+  <main class="flex-1 overflow-auto bg-gray-100" id="main"></main>
 
 <script>
 const API = 'http://localhost:8001'
@@ -67,15 +67,15 @@ const apiForm = (path, form) => apiFetch(path, { method:'POST', body:form })
 
 function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
-function statCard(label, value, color = 'text-gray-200', sub = '') {
-  return `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center shadow-sm">
+function statCard(label, value, color = 'text-gray-900', sub = '') {
+  return `<div class="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
     <div class="text-2xl font-bold ${color}">${esc(String(value))}</div>
-    <div class="text-xs text-slate-500 mt-1">${esc(label)}${sub ? `<span class="ml-1 text-amber-600">(${esc(sub)})</span>` : ''}</div>
+    <div class="text-xs text-gray-500 mt-1">${esc(label)}${sub ? `<span class="ml-1 text-amber-600">(${esc(sub)})</span>` : ''}</div>
   </div>`
 }
 
 function errBox(msg) {
-  return msg ? `<div class="p-3 bg-red-950/60 ring-1 ring-red-700/50 rounded-xl text-sm text-red-300 mb-4">${esc(msg)}</div>` : ''
+  return msg ? `<div class="p-3 bg-red-50 ring-1 ring-red-200 rounded-xl text-sm text-red-700 mb-4">${esc(msg)}</div>` : ''
 }
 
 function setBtn(id, loading, label) {
@@ -108,8 +108,8 @@ function barChart(rows, labelKey, valueKey) {
     const val = Math.round(max * t)
     const y = padT + chartH - Math.floor(t * chartH)
     const label = val >= 1000 ? (val/1000).toFixed(1)+'k' : val
-    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#1f2937" stroke-width="1"/>
-            <text x="${padL - 4}" y="${y + 4}" text-anchor="end" fill="#4b5563" font-size="9">${label}</text>`
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>
+            <text x="${padL - 4}" y="${y + 4}" text-anchor="end" fill="#9ca3af" font-size="9">${label}</text>`
   }).join('')
 
   const bars = rows.map((r, i) => {
@@ -124,7 +124,7 @@ function barChart(rows, labelKey, valueKey) {
     const valLbl = val >= 1000 ? (val/1000).toFixed(1)+'k' : val
     return `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#barGrad)" rx="2"/>
             <text x="${x + bw/2}" y="${y - 4}" text-anchor="middle" fill="#c084fc" font-size="9" font-weight="500">${valLbl}</text>
-            <text x="${x + bw/2}" y="${H - 6}" text-anchor="middle" fill="#6b7280" font-size="9">${lbl}</text>`
+            <text x="${x + bw/2}" y="${H - 6}" text-anchor="middle" fill="#9ca3af" font-size="9">${lbl}</text>`
   }).join('')
 
   return `<svg viewBox="0 0 ${W} ${H}" class="w-full">${defs}${ticks}${bars}</svg>`
@@ -135,84 +135,76 @@ function barChart(rows, labelKey, valueKey) {
 function renderHome() {
   set(`<div class="p-8 max-w-5xl">
     <div class="mb-6">
-      <h1 class="text-2xl font-extrabold text-white tracking-tight">Parallax</h1>
-      <p class="text-slate-400 mt-1 text-sm">SIEM Engineering Toolkit</p>
+      <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">Parallax</h1>
+      <p class="text-gray-500 mt-1 text-sm">SIEM Engineering Toolkit</p>
     </div>
 
     <!-- Live Consoles Card -->
     <div id="consoles-card" class="mb-8">
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
         <div class="flex items-center justify-between mb-3">
-          <h2 class="text-sm font-semibold text-white">Live Consoles</h2>
+          <h2 class="text-sm font-semibold text-gray-900">Live Consoles</h2>
           <button onclick="toggleAddConsoleForm()" class="px-2.5 py-1 text-xs bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors">+ Add</button>
         </div>
 
         <!-- Add Console inline form (hidden by default) -->
-        <div id="add-console-form" class="hidden mb-4 bg-slate-800/50 ring-1 ring-white/5 rounded-xl p-4">
-          <h3 class="text-xs font-semibold text-slate-300 mb-3 uppercase tracking-wider">Add Console</h3>
+        <div id="add-console-form" class="hidden mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4">
+          <h3 class="text-xs font-semibold text-gray-700 mb-3 uppercase tracking-wider">Add Console</h3>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs text-slate-400 mb-1">Name</label>
-              <input id="ac-name" type="text" placeholder="Production" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">Name</label>
+              <input id="ac-name" type="text" placeholder="Production" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">S1 Console URL</label>
-              <input id="ac-s1-url" type="text" placeholder="https://demo.sentinelone.net" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">S1 Console URL</label>
+              <input id="ac-s1-url" type="text" placeholder="https://demo.sentinelone.net" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">API Token</label>
-              <input id="ac-token" type="password" placeholder="eyJ…" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">API Token</label>
+              <input id="ac-token" type="password" placeholder="eyJ…" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">SDL XDR URL</label>
-              <input id="ac-sdl-url" type="text" placeholder="https://xdr.us1.sentinelone.net" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">SDL XDR URL</label>
+              <input id="ac-sdl-url" type="text" placeholder="https://xdr.us1.sentinelone.net" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">Log Read Key</label>
-              <input id="ac-log-key" type="password" placeholder="1DnK0Y4e…" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">Log Read Key</label>
+              <input id="ac-log-key" type="password" placeholder="1DnK0Y4e…" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">Config Read Key <span class="text-slate-600">(optional)</span></label>
-              <input id="ac-cfg-key" type="password" placeholder="Needs 'Manage config files' permission" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">Config Read Key <span class="text-gray-400">(optional)</span></label>
+              <input id="ac-cfg-key" type="password" placeholder="Needs 'Manage config files' permission" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
             <div>
-              <label class="block text-xs text-slate-400 mb-1">PQ Timeout (s)</label>
-              <input id="ac-pq-timeout" type="number" value="600" min="60" class="w-full bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:border-purple-500 transition-colors">
+              <label class="block text-xs text-gray-500 mb-1">PQ Timeout (s)</label>
+              <input id="ac-pq-timeout" type="number" value="600" min="60" class="w-full bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-purple-500 transition-colors">
             </div>
           </div>
           <div id="add-console-err" class="mt-2"></div>
           <div class="flex gap-2 mt-3">
             <button onclick="saveConsole()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors">Save</button>
-            <button onclick="toggleAddConsoleForm()" class="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-medium transition-colors">Cancel</button>
+            <button onclick="toggleAddConsoleForm()" class="px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 font-medium transition-colors">Cancel</button>
           </div>
         </div>
 
         <!-- Console list -->
         <div id="consoles-list" class="space-y-1">
-          <div class="text-xs text-slate-600 animate-pulse py-2">Loading consoles…</div>
+          <div class="text-xs text-gray-400 animate-pulse py-2">Loading consoles…</div>
         </div>
       </div>
     </div>
 
     <!-- Health Score Card -->
-    <div id="health-score-card" class="mb-8">
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-6 shadow-sm border-t-2 border-t-purple-600">
-        <div class="flex flex-col md:flex-row md:items-center gap-6">
-          <div class="text-center md:text-left">
-            <div class="text-xs text-slate-500 uppercase tracking-widest mb-1 font-medium">Tenant Health Score</div>
-            <div id="health-score-value" class="text-6xl font-black text-slate-600 leading-none">—</div>
-          </div>
-          <div class="flex-1 grid grid-cols-3 gap-3" id="health-components">
-            <div class="bg-slate-800/50 rounded-lg p-3 text-center animate-pulse"><div class="h-4 bg-slate-700 rounded mb-1"></div><div class="h-3 bg-slate-700/60 rounded"></div></div>
-            <div class="bg-slate-800/50 rounded-lg p-3 text-center animate-pulse"><div class="h-4 bg-slate-700 rounded mb-1"></div><div class="h-3 bg-slate-700/60 rounded"></div></div>
-            <div class="bg-slate-800/50 rounded-lg p-3 text-center animate-pulse"><div class="h-4 bg-slate-700 rounded mb-1"></div><div class="h-3 bg-slate-700/60 rounded"></div></div>
-          </div>
-        </div>
+    <div id="health-score-card" class="mb-8 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100 animate-pulse">
+        <div class="p-6 flex items-center justify-center"><div class="w-44 h-44 rounded-full bg-gray-100"></div></div>
+        <div class="p-6 space-y-5"><div class="h-3 bg-gray-100 rounded w-36 mb-4"></div><div class="h-2 bg-gray-100 rounded"></div><div class="h-2 bg-gray-100 rounded w-4/5"></div><div class="h-2 bg-gray-100 rounded"></div><div class="h-2 bg-gray-100 rounded w-3/4"></div><div class="h-2 bg-gray-100 rounded"></div><div class="h-2 bg-gray-100 rounded w-4/5"></div></div>
+        <div class="p-6 space-y-4"><div class="h-3 bg-gray-100 rounded w-28 mb-4"></div><div class="h-2 bg-gray-100 rounded"></div><div class="h-2 bg-gray-100 rounded w-5/6"></div><div class="h-2 bg-gray-100 rounded"></div><div class="h-2 bg-gray-100 rounded w-4/6"></div><div class="h-2 bg-gray-100 rounded"></div><div class="h-2 bg-gray-100 rounded w-5/6"></div></div>
       </div>
     </div>
 
     <div id="home-stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      ${[0,1,2,3].map(() => `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center animate-pulse"><div class="h-7 w-16 bg-gray-800/80 rounded mx-auto mb-1"></div><div class="h-3 w-20 bg-gray-800/60 rounded mx-auto"></div></div>`).join('')}
+      ${[0,1,2,3].map(() => `<div class="bg-white border border-gray-200 rounded-xl p-4 text-center animate-pulse"><div class="h-7 w-16 bg-gray-200 rounded mx-auto mb-1"></div><div class="h-3 w-20 bg-gray-100 rounded mx-auto"></div></div>`).join('')}
     </div>
     <div id="home-uncovered" class="hidden mb-8"></div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -241,23 +233,23 @@ async function loadConsolesList() {
     const data = await apiGet('/api/consoles/list')
     const consoles = data.consoles || []
     if (!consoles.length) {
-      listEl.innerHTML = '<div class="text-xs text-slate-500 py-2">No consoles configured — click <strong class="text-slate-400">+ Add</strong> to get started.</div>'
+      listEl.innerHTML = '<div class="text-xs text-gray-500 py-2">No consoles configured — click <strong class="text-gray-700">+ Add</strong> to get started.</div>'
       return
     }
     listEl.innerHTML = consoles.map(c => {
       const dot = c.is_active
         ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-2 shrink-0"></span>'
-        : '<span class="inline-block w-2 h-2 rounded-full bg-slate-600 mr-2 shrink-0"></span>'
+        : '<span class="inline-block w-2 h-2 rounded-full bg-gray-300 mr-2 shrink-0"></span>'
       const selectBtn = c.is_active
         ? ''
-        : `<button onclick="activateConsole(${c.id})" class="px-2 py-0.5 text-xs bg-slate-700 hover:bg-purple-700 rounded text-slate-300 hover:text-white font-medium transition-colors">Select</button>`
+        : `<button onclick="activateConsole(${c.id})" class="px-2 py-0.5 text-xs bg-gray-100 hover:bg-purple-700 rounded text-gray-600 hover:text-white font-medium transition-colors">Select</button>`
       const deleteBtn = c.is_active
-        ? `<button disabled class="px-1.5 py-0.5 text-xs rounded text-slate-700 cursor-not-allowed font-bold" title="Cannot delete active console">×</button>`
-        : `<button onclick="deleteConsole(${c.id})" class="px-1.5 py-0.5 text-xs bg-red-950/60 hover:bg-red-900/80 ring-1 ring-red-800/40 rounded text-red-400 hover:text-red-300 font-bold transition-colors" title="Delete console">×</button>`
-      return `<div class="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-white/[0.03] transition-colors">
+        ? `<button disabled class="px-1.5 py-0.5 text-xs rounded text-gray-300 cursor-not-allowed font-bold" title="Cannot delete active console">×</button>`
+        : `<button onclick="deleteConsole(${c.id})" class="px-1.5 py-0.5 text-xs bg-red-50 hover:bg-red-100 border border-red-200 rounded text-red-500 hover:text-red-600 font-bold transition-colors" title="Delete console">×</button>`
+      return `<div class="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 transition-colors">
         ${dot}
-        <span class="text-sm text-gray-200 font-medium min-w-0 truncate">${esc(c.name)}</span>
-        <span class="text-xs text-slate-500 min-w-0 truncate flex-1">${esc(c.s1_base_url || '')}</span>
+        <span class="text-sm text-gray-900 font-medium min-w-0 truncate">${esc(c.name)}</span>
+        <span class="text-xs text-gray-500 min-w-0 truncate flex-1">${esc(c.s1_base_url || '')}</span>
         <div class="flex items-center gap-1 shrink-0">${selectBtn}${deleteBtn}</div>
       </div>`
     }).join('')
@@ -299,9 +291,17 @@ async function saveConsole() {
 
 async function activateConsole(id) {
   try {
-    await apiFetch(`/api/consoles/${id}/activate`, { method: 'POST' })
-    // Full page reload so all cached data re-fetches with new creds
-    location.reload()
+    const r = await apiFetch(`/api/consoles/${id}/activate`, { method: 'POST' })
+    if (r.needs_sync) {
+      // Stale data cleared — show banner then reload
+      const banner = document.createElement('div')
+      banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-amber-50 border border-amber-300 rounded-xl px-5 py-3 text-sm text-amber-800 shadow-lg flex items-center gap-3'
+      banner.innerHTML = `<span class="text-lg">🔄</span><span>Switched to <strong>${esc(r.console?.name || 'console')}</strong> — previous sync data cleared. Re-sync sources and parsers.</span>`
+      document.body.appendChild(banner)
+      setTimeout(() => location.reload(), 2000)
+    } else {
+      location.reload()
+    }
   } catch(e) {
     alert('Failed to activate console: ' + e.message)
   }
@@ -346,20 +346,20 @@ async function homeLoadStats() {
 
     if (incomplete.length) {
       const rows = incomplete.map((s, i) => `
-        <tr class="${i % 2 === 1 ? 'bg-white/[0.02]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-          <td class="py-2 pr-4 font-mono text-xs text-gray-200">
+        <tr class="${i % 2 === 1 ? 'bg-gray-50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+          <td class="py-2 pr-4 font-mono text-xs text-gray-900">
             <a href="#/quality" onclick="queueQualitySource('${esc(s.source_name)}')" class="hover:text-purple-400 cursor-pointer transition-colors">${esc(s.source_name)}</a>
           </td>
-          <td class="py-2 text-xs text-slate-400">${(s.event_count || 0).toLocaleString()} events</td>
+          <td class="py-2 text-xs text-gray-500">${(s.event_count || 0).toLocaleString()} events</td>
         </tr>`).join('')
 
       document.getElementById('home-uncovered').classList.remove('hidden')
       document.getElementById('home-uncovered').innerHTML = `
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-amber-900/30 rounded-xl p-5 border-t-2 border-t-amber-600/40">
-          <h2 class="text-sm font-semibold text-white mb-1">Top Incomplete Parsers</h2>
-          <p class="text-xs text-slate-500 mb-3">Highest-volume sources with a parser file missing <code class="bg-slate-800 px-1 rounded">dataSource.name</code> — click to inspect in Parser Quality.</p>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 border-t-2 border-t-amber-500">
+          <h2 class="text-sm font-semibold text-gray-900 mb-1">Top Incomplete Parsers</h2>
+          <p class="text-xs text-gray-500 mb-3">Highest-volume sources with a parser file missing <code class="bg-gray-100 px-1 rounded">dataSource.name</code> — click to inspect in Parser Quality.</p>
           <table class="w-full">
-            <thead><tr class="text-left text-slate-500 border-b border-white/5">
+            <thead><tr class="text-left text-gray-500 border-b border-gray-100">
               <th class="pb-2 pr-4 text-xs font-medium">Source</th>
               <th class="pb-2 text-xs font-medium">Volume</th>
             </tr></thead>
@@ -382,54 +382,126 @@ function homeStat(value, label, valueClass, note) {
     : valueClass.includes('purple') ? 'border-t-2 border-t-purple-500'
     : valueClass.includes('blue') ? 'border-t-2 border-t-blue-500'
     : 'border-t-2 border-t-slate-700'
-  return `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center ${accent} shadow-sm">
+  return `<div class="bg-white border border-gray-200 rounded-xl p-4 text-center ${accent} shadow-sm">
     <div class="text-2xl font-bold ${valueClass} mb-1">${value}</div>
-    <div class="text-xs text-slate-500">${label}</div>
-    ${note ? `<div class="text-xs text-slate-600 mt-1">${note}</div>` : ''}
+    <div class="text-xs text-gray-500">${label}</div>
+    ${note ? `<div class="text-xs text-gray-400 mt-1">${note}</div>` : ''}
   </div>`
 }
 
 function homeCard(href, title, desc, cta, grad) {
-  return `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-6 flex flex-col gap-4 hover:ring-white/10 transition-all">
+  return `<div class="bg-white border border-gray-200 rounded-xl p-6 flex flex-col gap-4 hover:border-gray-300 hover:shadow-md transition-all">
     <div class="w-10 h-10 rounded-lg bg-gradient-to-br ${grad} shadow-lg"></div>
-    <div><h2 class="font-semibold text-white">${esc(title)}</h2>
-    <p class="text-sm text-slate-400 mt-1 leading-relaxed">${esc(desc)}</p></div>
-    <a href="${href}" class="mt-auto text-sm text-purple-400 hover:text-purple-300 font-medium transition-colors">${esc(cta)} →</a>
+    <div><h2 class="font-semibold text-gray-900">${esc(title)}</h2>
+    <p class="text-sm text-gray-500 mt-1 leading-relaxed">${esc(desc)}</p></div>
+    <a href="${href}" class="mt-auto text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors">${esc(cta)} →</a>
   </div>`
 }
 
 async function loadHealthScore() {
   try {
-    const h = await apiGet('/api/coverage/health')
-    const score = h.health_score ?? 0
-    const scoreColor = score >= 80 ? 'text-emerald-400' : score >= 60 ? 'text-amber-400' : 'text-red-400'
+    const [h, firingData] = await Promise.all([
+      apiGet('/api/coverage/health'),
+      apiGet('/api/coverage/rule-firing-cache').catch(() => ({ rules: [] })),
+    ])
 
-    const scoreEl = document.getElementById('health-score-value')
-    if (scoreEl) {
-      scoreEl.textContent = score
-      scoreEl.className = `text-6xl font-black leading-none ${scoreColor}`
+    const score      = h.health_score ?? 0
+    const comps      = h.components || {}
+    const parserPct  = comps.parser_coverage?.value ?? 0
+    const mitrePct   = comps.mitre_coverage?.value  ?? 0
+    const firingPct  = comps.rule_firing?.value      // null when cache empty
+    const parserW    = comps.parser_coverage?.weight ?? 0.55
+    const mitreW     = comps.mitre_coverage?.weight  ?? 0.45
+    const firingW    = comps.rule_firing?.weight     ?? 0
+
+    const scoreHex   = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444'
+
+    // ── Concentric donut rings ────────────────────────────────────────────
+    const rings = [
+      { r: 80, pct: parserPct,       color: '#7c3aed', label: 'Parser Coverage',  weight: parserW },
+      { r: 60, pct: mitrePct,        color: '#3b82f6', label: 'MITRE Coverage',   weight: mitreW  },
+      { r: 40, pct: firingPct ?? 0,  color: '#10b981', label: 'Rule Firing Rate', weight: firingW },
+    ]
+
+    const svgRings = rings.map(ring => {
+      const circ  = 2 * Math.PI * ring.r
+      const offset = circ * (1 - ring.pct / 100)
+      return `<circle cx="100" cy="100" r="${ring.r}" fill="none" stroke="#e5e7eb" stroke-width="15"/>
+<circle cx="100" cy="100" r="${ring.r}" fill="none" stroke="${ring.color}" stroke-width="15"
+  stroke-dasharray="${circ.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
+  stroke-linecap="round" transform="rotate(-90 100 100)"/>`
+    }).join('\n')
+
+    const svgEl = `<svg viewBox="0 0 200 200" class="w-full h-full">
+      ${svgRings}
+      <text x="100" y="94"  text-anchor="middle" font-size="34" font-weight="900" fill="${scoreHex}" font-family="system-ui,sans-serif">${score}</text>
+      <text x="100" y="112" text-anchor="middle" font-size="10" fill="#9ca3af"   font-family="system-ui,sans-serif">Health Score</text>
+    </svg>`
+
+    // ── Metric breakdown rows ─────────────────────────────────────────────
+    const metricRow = ring => {
+      const noData  = ring.label === 'Rule Firing Rate' && firingPct === null
+      const display = noData ? '—' : `${ring.pct.toFixed(1)}%`
+      const valColor = noData ? '#9ca3af' : ring.pct >= 80 ? '#10b981' : ring.pct >= 60 ? '#f59e0b' : '#ef4444'
+      const barW    = noData ? 0 : Math.min(100, ring.pct)
+      return `<div>
+        <div class="flex justify-between items-center mb-1">
+          <div class="flex items-center gap-2">
+            <div class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${ring.color}"></div>
+            <span class="text-sm text-gray-700 font-medium">${ring.label}</span>
+          </div>
+          <span class="text-sm font-bold" style="color:${valColor}">${display}</span>
+        </div>
+        <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div class="h-1.5 rounded-full" style="width:${barW}%;background:${ring.color}"></div>
+        </div>
+        <div class="text-xs text-gray-400 mt-0.5">${Math.round(ring.weight * 100)}% health weight</div>
+      </div>`
     }
 
-    const compEl = document.getElementById('health-components')
-    if (compEl && h.components) {
-      const comps = h.components
-      const compCard = (label, value, weight) => {
-        const v = value ?? null
-        const pct = v != null ? v.toFixed(1) : '—'
-        const pctColor = v == null ? 'text-slate-500' : v >= 80 ? 'text-emerald-400' : v >= 60 ? 'text-amber-400' : 'text-red-400'
-        return `<div class="bg-slate-800/50 rounded-lg p-3 text-center">
-          <div class="text-xl font-bold ${pctColor}">${pct}${v != null ? '%' : ''}</div>
-          <div class="text-xs text-slate-500 mt-1">${esc(label)}</div>
-          <div class="text-xs text-slate-700 mt-0.5">${(weight * 100).toFixed(0)}% weight</div>
+    // ── Top rules (like Top Threat Actors) ───────────────────────────────
+    const topRules   = (firingData.rules || []).filter(r => r.alert_count > 0).slice(0, 5)
+    const maxAlerts  = topRules[0]?.alert_count || 1
+    const ruleColors = ['#ef4444', '#f97316', '#f59e0b', '#8b5cf6', '#3b82f6']
+
+    const topRulesHtml = topRules.length
+      ? topRules.map((r, i) => {
+          const barPct = Math.round((r.alert_count / maxAlerts) * 100)
+          const name   = r.rule_name.length > 38 ? r.rule_name.slice(0, 38) + '…' : r.rule_name
+          return `<div class="flex items-center gap-2.5">
+            <div class="w-2 h-2 rounded-full shrink-0" style="background:${ruleColors[i]}"></div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center mb-0.5">
+                <span class="text-xs text-gray-700 font-medium truncate" title="${esc(r.rule_name)}">${esc(name)}</span>
+                <span class="text-xs font-bold text-gray-900 ml-2 shrink-0">${r.alert_count.toLocaleString()}</span>
+              </div>
+              <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-1.5 rounded-full" style="width:${barPct}%;background:${ruleColors[i]}"></div>
+              </div>
+            </div>
+          </div>`
+        }).join('')
+      : `<p class="text-xs text-gray-400 mt-2">No rule firing data yet — sync Detection Library then Rule Firing on the MITRE page.</p>`
+
+    const cardEl = document.getElementById('health-score-card')
+    if (cardEl) {
+      cardEl.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div class="p-6 flex items-center justify-center">
+            <div class="w-44 h-44">${svgEl}</div>
+          </div>
+          <div class="p-6">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Coverage Breakdown</p>
+            <div class="space-y-4">${rings.map(metricRow).join('')}</div>
+          </div>
+          <div class="p-6">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">Top Active Rules</p>
+            <div class="space-y-3">${topRulesHtml}</div>
+          </div>
         </div>`
-      }
-      compEl.innerHTML =
-        compCard('Parser Coverage', comps.parser_coverage.value, comps.parser_coverage.weight) +
-        compCard('MITRE Coverage',  comps.mitre_coverage.value,  comps.mitre_coverage.weight) +
-        compCard('Rule Firing Rate', comps.rule_firing.value,    comps.rule_firing.weight)
     }
   } catch(e) {
-    // Health score load failure is non-critical — leave placeholder visible
+    // non-critical — leave skeleton visible
   }
 }
 
@@ -446,9 +518,9 @@ let cvFilter = 'all', cvData = null
 function renderCoverage() {
   set(`<div class="p-8 max-w-6xl">
     <div class="flex items-start justify-between mb-2">
-      <h1 class="text-xl font-extrabold text-white tracking-tight">Parser Coverage Map</h1>
+      <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Parser Coverage Map</h1>
       <div class="flex gap-2 flex-wrap justify-end">
-        <select id="sync-days" class="bg-slate-800/80 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+        <select id="sync-days" class="bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-purple-500 transition-colors">
           <option value="1" selected>1d</option>
           <option value="3">3d</option>
           <option value="7">7d</option>
@@ -457,11 +529,11 @@ function renderCoverage() {
         <button id="btn-sync" onclick="cvSyncSources()" class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white font-medium transition-colors shadow-sm">Sync Live Sources</button>
         <button id="btn-sync-library" onclick="syncLibrary()" class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white font-medium transition-colors shadow-sm">Sync Detection Library</button>
         <button id="btn-sdl-parsers" onclick="loadSDLParsers()" class="px-3 py-1.5 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors shadow-sm">Sync SDL Parsers</button>
-        <button onclick="document.getElementById('f-parser').click()" class="px-3 py-1.5 text-sm bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-medium transition-colors shadow-sm">Upload Parser</button>
+        <button onclick="document.getElementById('f-parser').click()" class="px-3 py-1.5 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-700 font-medium transition-colors shadow-sm">Upload Parser</button>
         <button onclick="cvReset()" class="px-3 py-1.5 text-sm bg-red-950/60 hover:bg-red-900/80 ring-1 ring-red-800/50 rounded-lg text-red-400 font-medium transition-colors">Reset</button>
       </div>
     </div>
-    <p class="text-sm text-slate-400 mb-6">Click <strong class="text-slate-300">Sync Live Sources</strong> to pull current dataSource.names from the data lake, then <strong class="text-slate-300">Sync SDL Parsers</strong> to fetch parsers from the console and see coverage. Requires <strong class="text-slate-300">SDL_CONFIG_READ_KEY</strong> in Settings (needs "Manage config files" permission).</p>
+    <p class="text-sm text-gray-500 mb-6"><strong class="text-gray-700">Sync Live Sources</strong> pulls active dataSource.names from the data lake. <strong class="text-gray-700">Sync SDL Parsers</strong> fetches your parser files from the console (requires <strong class="text-gray-700">SDL_CONFIG_READ_KEY</strong> in Settings with <em>Manage config files</em> permission). <strong class="text-gray-700">Sync Detection Library</strong> loads platform rules and MITRE mappings from the S1 API. Use <strong class="text-gray-700">Sync All</strong> to run all three in sequence.</p>
     <input type="file" id="f-parser" accept=".json" class="hidden" onchange="cvUploadParser(this.files[0])">
     <div id="cv-err"></div>
     <div id="cv-stats"></div>
@@ -471,6 +543,7 @@ function renderCoverage() {
   cvLoad()
 }
 
+
 async function syncLibrary() {
   setBtn('btn-sync-library', true)
   const errEl = document.getElementById('cv-err')
@@ -478,13 +551,62 @@ async function syncLibrary() {
   try {
     const r = await apiPost('/api/coverage/load-detections', {})
     if (errEl) {
-      errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ring-emerald-700/50 rounded-xl text-sm text-emerald-300 mb-4">✓ ${r.loaded} detection rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`
+      errEl.innerHTML = `<div class="p-3 bg-emerald-50 ring-1 ring-emerald-200 rounded-xl text-sm text-emerald-700 mb-4">✓ ${r.loaded} detection rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`
       setTimeout(() => { errEl.innerHTML = '' }, 4000)
     }
     cvLoad()
   } catch(e) {
     if (errEl) errEl.innerHTML = errBox(e.message)
   } finally { setBtn('btn-sync-library', false, 'Sync Detection Library') }
+}
+
+async function cvSyncAll() {
+  setBtn('btn-sync-all', true, 'Syncing…')
+  const errEl = document.getElementById('cv-err')
+  if (errEl) errEl.innerHTML = ''
+  const results = []
+  let hasError = false
+  try {
+    setBtn('btn-sync-all', true, 'Syncing Parsers…')
+    try {
+      const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
+      const cf = res.console_fetch || {}
+      const dbg = cf.debug || {}
+      let parts = []
+      if (cf.fetched > 0) parts.push(`fetched ${cf.fetched} from console`)
+      else if (cf.skipped) parts.push(`console sync skipped (${cf.skipped})`)
+      const parserCount = res.parser_count ?? res.loaded
+      parts.push(`${parserCount} parser${parserCount !== 1 ? 's' : ''} loaded`)
+      if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
+      const pathsListed = dbg.paths_listed || []
+      const debugHtml = pathsListed.length > 0
+        ? `<details class="mt-2"><summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">SDL returned ${dbg.paths_found ?? pathsListed.length} paths — click to inspect</summary>
+            <div class="mt-1 max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-2 text-xs font-mono text-gray-700 space-y-0.5">${pathsListed.map(p => `<div class="truncate">${esc(p)}</div>`).join('')}</div></details>`
+        : (dbg.paths_found === 0 ? `<div class="text-xs text-amber-600 mt-1">⚠ SDL returned 0 paths — check SDL_CONFIG_READ_KEY permissions</div>` : '')
+      results.push(`<div class="text-emerald-700"><span class="font-medium">SDL Parsers</span> · ✓ ${parts.join(' · ')}${debugHtml}</div>`)
+    } catch(e) { results.push(`<div class="text-red-600"><span class="font-medium">SDL Parsers</span> · ✗ ${esc(e.message)}</div>`); hasError = true }
+
+    setBtn('btn-sync-all', true, 'Syncing Library…')
+    try {
+      const r = await apiPost('/api/coverage/load-detections', {})
+      results.push(`<div class="text-emerald-700"><span class="font-medium">Detection Library</span> · ✓ ${r.loaded} rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`)
+    } catch(e) { results.push(`<div class="text-red-600"><span class="font-medium">Detection Library</span> · ✗ ${esc(e.message)}</div>`); hasError = true }
+
+    setBtn('btn-sync-all', true, 'Syncing Sources…')
+    try {
+      const days = document.getElementById('sync-days')?.value || 7
+      const r = await apiPost(`/api/coverage/sync-sources?days=${days}`, {})
+      results.push(`<div class="text-emerald-700"><span class="font-medium">Live Sources</span> · ✓ ${r.synced} sources synced</div>`)
+    } catch(e) { results.push(`<div class="text-red-600"><span class="font-medium">Live Sources</span> · ✗ ${esc(e.message)}</div>`); hasError = true }
+
+    await cvLoad()
+  } finally {
+    setBtn('btn-sync-all', false, 'Sync All')
+    if (errEl && results.length) {
+      const cls = hasError ? 'bg-red-50 ring-red-200' : 'bg-emerald-50 ring-emerald-200'
+      errEl.innerHTML = `<div class="p-3 ring-1 ${cls} rounded-xl text-sm mb-4 space-y-1">${results.join('')}</div>`
+    }
+  }
 }
 
 async function loadSDLParsers() {
@@ -511,10 +633,10 @@ async function loadSDLParsers() {
     const pathsListed = dbg.paths_listed || []
     const debugHtml = pathsListed.length > 0 ? `
       <details class="mt-2">
-        <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-200">
+        <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
           SDL returned ${dbg.paths_found ?? pathsListed.length} path${pathsListed.length !== 1 ? 's' : ''} — click to inspect
         </summary>
-        <div class="mt-1 max-h-48 overflow-y-auto bg-slate-950 rounded-lg p-2 text-xs font-mono text-gray-300 space-y-0.5">
+        <div class="mt-1 max-h-48 overflow-y-auto bg-gray-100 rounded-lg p-2 text-xs font-mono text-gray-700 space-y-0.5">
           ${pathsListed.map(p => `<div class="truncate">${esc(p)}</div>`).join('')}
         </div>
       </details>` : (dbg.paths_found === 0 ? `<div class="text-xs text-amber-400 mt-1">⚠ SDL returned 0 paths — check SDL_CONFIG_READ_KEY permissions</div>` : '')
@@ -524,9 +646,9 @@ async function loadSDLParsers() {
         ...(res.errors || []).map(e => `index: ${e.parser}`),
         ...(cf.failed  || []).map(e => `fetch: ${e.path?.split('/').pop()} — ${e.error}`),
       ].join('<br>')
-      if (errEl) errEl.innerHTML = `<div class="p-3 bg-red-950/60 ring-1 ring-red-700/50 rounded-xl text-sm text-red-300 mb-4">${msg}<br><span class="text-xs opacity-80">${detail}</span>${debugHtml}</div>`
+      if (errEl) errEl.innerHTML = `<div class="p-3 bg-red-50 ring-1 ring-red-200 rounded-xl text-sm text-red-700 mb-4">${msg}<br><span class="text-xs opacity-80">${detail}</span>${debugHtml}</div>`
     } else {
-      if (errEl) errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ring-emerald-700/50 rounded-xl text-sm text-emerald-300 mb-4">${msg}${debugHtml}</div>`
+      if (errEl) errEl.innerHTML = `<div class="p-3 bg-emerald-50 ring-1 ring-emerald-200 rounded-xl text-sm text-emerald-700 mb-4">${msg}${debugHtml}</div>`
       if (!pathsListed.length) setTimeout(() => { if (errEl) errEl.innerHTML = '' }, 5000)
     }
     cvLoad()
@@ -583,12 +705,12 @@ async function cvSampleUnlabelled() {
     }
     const rows = r.events.map((ev, i) => {
       const raw = getRaw(ev)
-      return `<tr class="border-b border-white/5 hover:bg-white/[0.03] transition-colors">
+      return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
         <td class="py-2 px-2">
           <div class="flex items-start gap-2">
             <button onclick="navigator.clipboard.writeText(this.dataset.msg)" data-msg="${esc(raw).replace(/"/g,'&quot;')}"
-              class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-md text-slate-600 hover:text-gray-200 hover:bg-white/10 text-xs transition-colors">⎘</button>
-            <span class="font-mono text-xs text-gray-300 break-all">${esc(raw.slice(0,300))}${raw.length>300?'<span class="text-slate-600">…</span>':''}</span>
+              class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 text-xs transition-colors">⎘</button>
+            <span class="font-mono text-xs text-gray-700 break-all">${esc(raw.slice(0,300))}${raw.length>300?'<span class="text-gray-400">…</span>':''}</span>
           </div>
         </td>
       </tr>`
@@ -607,8 +729,8 @@ async function cvSampleUnlabelled() {
     }
     el.innerHTML = `
       <div class="mb-4 rounded-xl ring-1 ring-orange-800/30 overflow-hidden">
-        <div class="px-3 py-2 bg-orange-950/30 border-b border-orange-800/30 flex items-center justify-between">
-          <span class="text-xs text-orange-400 font-medium">Sample of unlabelled events — no dataSource.name set</span>
+        <div class="px-3 py-2 bg-orange-50 border-b border-orange-200 flex items-center justify-between">
+          <span class="text-xs text-orange-700 font-medium">Sample of unlabelled events — no dataSource.name set</span>
           <span class="text-xs text-gray-500">${r.count} of ${r.total?.toLocaleString() ?? '?'} returned · last ${syncDays}d${r.columns_seen?.length ? ` · fields: ${r.columns_seen.join(', ')}` : ''}</span>
         </div>
         <div class="max-h-72 overflow-y-auto">
@@ -620,70 +742,6 @@ async function cvSampleUnlabelled() {
   } finally { setBtn('btn-unlabelled', false, 'Sample Events') }
 }
 
-async function cvSyncAll() {
-  setBtn('btn-sync-all', true, 'Syncing…')
-  const errEl = document.getElementById('cv-err')
-  if (errEl) errEl.innerHTML = ''
-  const results = []
-  let hasError = false
-
-  try {
-    // 1. SDL Parsers
-    setBtn('btn-sync-all', true, 'Syncing Parsers…')
-    try {
-      const res = await apiPost('/api/coverage/load-parsers-from-sdl', {})
-      const cf = res.console_fetch || {}
-      const dbg = cf.debug || {}
-      let parts = []
-      if (cf.fetched > 0) parts.push(`fetched ${cf.fetched} from console`)
-      else if (cf.skipped) parts.push(`console sync skipped (${cf.skipped})`)
-      const parserCount = res.parser_count ?? res.loaded
-      parts.push(`${parserCount} parser${parserCount !== 1 ? 's' : ''} loaded`)
-      if (cf.failed?.length) parts.push(`${cf.failed.length} console fetch errors`)
-
-      const pathsListed = dbg.paths_listed || []
-      const debugHtml = pathsListed.length > 0
-        ? `<details class="mt-2"><summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-200">SDL returned ${dbg.paths_found ?? pathsListed.length} path${pathsListed.length !== 1 ? 's' : ''} — click to inspect</summary>
-            <div class="mt-1 max-h-48 overflow-y-auto bg-slate-950 rounded-lg p-2 text-xs font-mono text-gray-300 space-y-0.5">${pathsListed.map(p => `<div class="truncate">${esc(p)}</div>`).join('')}</div>
-           </details>`
-        : (dbg.paths_found === 0 ? `<div class="text-xs text-amber-400 mt-1">⚠ SDL returned 0 paths — check SDL_CONFIG_READ_KEY permissions</div>` : '')
-
-      results.push(`<div class="text-emerald-300"><span class="font-medium">SDL Parsers</span> · ✓ ${parts.join(' · ')}${debugHtml}</div>`)
-    } catch(e) {
-      results.push(`<div class="text-red-400"><span class="font-medium">SDL Parsers</span> · ✗ ${esc(e.message)}</div>`)
-      hasError = true
-    }
-
-    // 2. Detection Library
-    setBtn('btn-sync-all', true, 'Syncing Library…')
-    try {
-      const r = await apiPost('/api/coverage/load-detections', {})
-      results.push(`<div class="text-emerald-300"><span class="font-medium">Detection Library</span> · ✓ ${r.loaded} rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`)
-    } catch(e) {
-      results.push(`<div class="text-red-400"><span class="font-medium">Detection Library</span> · ✗ ${esc(e.message)}</div>`)
-      hasError = true
-    }
-
-    // 3. Live Sources
-    setBtn('btn-sync-all', true, 'Syncing Sources…')
-    try {
-      const days = document.getElementById('sync-days')?.value || 7
-      const r = await apiPost(`/api/coverage/sync-sources?days=${days}`, {})
-      results.push(`<div class="text-emerald-300"><span class="font-medium">Live Sources</span> · ✓ ${r.synced} sources synced</div>`)
-    } catch(e) {
-      results.push(`<div class="text-red-400"><span class="font-medium">Live Sources</span> · ✗ ${esc(e.message)}</div>`)
-      hasError = true
-    }
-
-    await cvLoad()
-  } finally {
-    setBtn('btn-sync-all', false, 'Sync All')
-    if (errEl && results.length) {
-      const borderColor = hasError ? 'ring-red-700/50' : 'ring-emerald-700/50'
-      errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ${borderColor} rounded-xl text-sm mb-4 space-y-1">${results.join('')}</div>`
-    }
-  }
-}
 
 async function cvSyncSources() {
   setBtn('btn-sync', true)
@@ -706,31 +764,27 @@ async function cvLoad() {
     const unlabelledQueried = unlabelled >= 0
     const unlabelledCount = unlabelled > 0 ? unlabelled.toLocaleString() : '—'
     document.getElementById('cv-stats').innerHTML = `
-      <div class="grid grid-cols-4 gap-3 mb-4">
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-blue-500 shadow-sm">
-          <div class="text-2xl font-bold text-gray-200">${s.active_sources}</div>
-          <div class="text-xs text-slate-500 mt-1">Active Sources</div>
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="bg-white border border-gray-200 rounded-xl p-4 text-center border-t-2 border-t-blue-500 shadow-sm">
+          <div class="text-2xl font-bold text-gray-900">${s.active_sources}</div>
+          <div class="text-xs text-gray-500 mt-1">Active Sources</div>
         </div>
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-emerald-500 shadow-sm">
+        <div class="bg-white border border-gray-200 rounded-xl p-4 text-center border-t-2 border-t-emerald-500 shadow-sm">
           <div class="text-2xl font-bold text-emerald-400">${s.covered}</div>
-          <div class="text-xs text-slate-500 mt-1">Covered</div>
+          <div class="text-xs text-gray-500 mt-1">Covered</div>
         </div>
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-amber-500 shadow-sm">
-          <div class="text-2xl font-bold ${s.stub_parsers > 0 ? 'text-amber-400' : 'text-gray-500'}">${s.stub_parsers}</div>
-          <div class="text-xs text-slate-500 mt-1">Incomplete Parser${s.stub_parsers > 0 ? `<br><span class="text-amber-600/80">missing dataSource.name</span>` : ''}</div>
-        </div>
-        <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 text-center border-t-2 border-t-purple-500 shadow-sm">
-          <div class="text-2xl font-bold text-purple-400">${s.parsers_loaded}</div>
-          <div class="text-xs text-slate-500 mt-1">Parsers Loaded</div>
+        <div class="bg-white border border-gray-200 rounded-xl p-4 text-center border-t-2 border-t-amber-500 shadow-sm">
+          <div class="text-2xl font-bold ${s.stub_parsers > 0 ? 'text-amber-400' : 'text-gray-400'}">${s.stub_parsers}</div>
+          <div class="text-xs text-gray-500 mt-1">Incomplete Parser${s.stub_parsers > 0 ? `<br><span class="text-amber-600">missing dataSource.name</span><br><span class="text-amber-500">Listed on Parser Quality page</span>` : ''}</div>
         </div>
       </div>
-      <div class="flex items-center justify-between bg-orange-950/50 ring-1 ring-orange-800/40 rounded-xl px-4 py-3 mb-4">
+      <div class="flex items-center justify-between bg-orange-50 ring-1 ring-orange-200 rounded-xl px-4 py-3 mb-4">
         <div id="cv-unlabelled-count" class="${unlabelledQueried ? '' : 'hidden'}">
           <span class="text-orange-300 font-semibold text-sm">${unlabelledCount} events with no dataSource.name</span>
           <span class="text-orange-600 text-xs ml-2">ingested but unidentified, these need parsers</span>
         </div>
         <div id="cv-unlabelled-prompt" class="${unlabelledQueried ? 'hidden' : ''}">
-          <span class="text-orange-600 text-sm">Sample events to find data with no dataSource.name — ingested but unidentified</span>
+          <span class="text-orange-700 text-sm">Sample events to find data with no dataSource.name — ingested but unidentified</span>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="cvSampleUnlabelled()" id="btn-unlabelled"
@@ -742,7 +796,7 @@ async function cvLoad() {
     if (!cvData.has_sources) {
       document.getElementById('cv-filters').classList.add('hidden')
       document.getElementById('cv-table').innerHTML = `
-        <div class="bg-gradient-to-b from-gray-900/50 to-gray-950/50 ring-1 ring-white/5 rounded-xl p-8 text-center text-sm text-slate-500">
+        <div class="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-500">
           No active sources synced yet.
         </div>`
       return
@@ -755,10 +809,10 @@ async function cvLoad() {
       ['covered',        'Complete Parser'],
       ['stub_parser',    'Attributes Missing'],
     ].map(([f,l]) => `<button onclick="cvSetFilter('${f}')" id="cvf-${f}"
-        class="px-3 py-1 text-xs rounded-full border border-white/10 text-slate-400 hover:border-white/20 hover:text-gray-200 transition-colors">${l}</button>`).join('')
+        class="px-3 py-1 text-xs rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-colors">${l}</button>`).join('')
 
     if (cvData.synced_at) {
-      filtersEl.innerHTML += `<span class="text-xs text-gray-600 self-center ml-2">Synced ${new Date(cvData.synced_at).toLocaleTimeString()}</span>`
+      filtersEl.innerHTML += `<span class="text-xs text-gray-400 self-center ml-2">Synced ${new Date(cvData.synced_at).toLocaleTimeString()}</span>`
     }
 
     cvSetFilter(cvFilter)
@@ -771,12 +825,12 @@ function cvSetFilter(f) {
   cvFilter = f
   document.querySelectorAll('[id^="cvf-"]').forEach(b => {
     const on = b.id === `cvf-${f}`
-    b.className = `px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-purple-700/80 border-purple-500 text-white shadow-sm shadow-purple-900/30' : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-gray-200 cursor-pointer'}`
+    b.className = `px-3 py-1 text-xs rounded-full border transition-colors ${on ? 'bg-purple-600 border-purple-600 text-white shadow-sm' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 cursor-pointer'}`
   })
   if (!cvData?.sources) return
 
   const LABELS = { covered: 'Covered', parser_needed: 'Incomplete Parser', stub_parser: 'Attributes Missing', unlabelled: 'No dataSource.name' }
-  const STYLES  = { covered: 'bg-emerald-900/50 text-emerald-300 border-emerald-700', parser_needed: 'bg-red-900/50 text-red-300 border-red-700', stub_parser: 'bg-amber-900/50 text-amber-300 border-amber-700', unlabelled: 'bg-orange-900/50 text-orange-300 border-orange-700' }
+  const STYLES  = { covered: 'bg-emerald-50 text-emerald-700 border-emerald-300', parser_needed: 'bg-red-50 text-red-700 border-red-300', stub_parser: 'bg-amber-50 text-amber-700 border-amber-300', unlabelled: 'bg-orange-50 text-orange-700 border-orange-300' }
 
   const sources = cvData.sources.filter(s => {
     if ((EXCLUDED_SOURCES.has(s.source_name) && !s.unlabelled)) return false
@@ -796,12 +850,12 @@ function cvSetFilter(f) {
     }
     const id = 'mf-' + s.source_name.replace(/[^a-z0-9]/gi, '_')
     const chips = s.missing_fields.map(f =>
-      `<span class="px-1.5 py-0.5 bg-red-900/40 border border-red-800/60 rounded text-xs font-mono text-red-300">${esc(f)}</span>`
+      `<span class="px-1.5 py-0.5 bg-red-50 border border-red-200 rounded text-xs font-mono text-red-600">${esc(f)}</span>`
     ).join(' ')
     return `<div>
       <button onclick="cvToggleMissing('${id}')"
         class="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-300 transition-colors">
-        <span class="px-1.5 py-0.5 bg-red-900/40 border border-red-800/60 rounded font-semibold">${s.missing_fields.length}</span>
+        <span class="px-1.5 py-0.5 bg-red-50 border border-red-300 rounded font-semibold">${s.missing_fields.length}</span>
         <span>field${s.missing_fields.length !== 1 ? 's' : ''} missing</span>
         <span id="${id}-chevron" class="text-gray-600">▶</span>
       </button>
@@ -839,13 +893,13 @@ function cvSetFilter(f) {
       // Build expanded rule list: one rule per line, grouped by product
       let listHtml = ''
       for (const [product, prodRules] of Object.entries(byProduct)) {
-        listHtml += `<div class="mt-1.5 mb-0.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">${esc(product)}</div>`
+        listHtml += `<div class="mt-1.5 mb-0.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">${esc(product)}</div>`
         for (const r of prodRules) {
           const alerts = r.alert_count ?? null
           if (!firingPopulated || alerts === null) {
-            listHtml += `<div class="text-slate-300 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)}">${esc(r.rule)}</div>`
+            listHtml += `<div class="text-gray-700 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)}">${esc(r.rule)}</div>`
           } else if (alerts > 0) {
-            listHtml += `<div class="text-purple-300 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)} — ${alerts} alerts">${esc(r.rule)} <span class="text-emerald-500">(${alerts})</span></div>`
+            listHtml += `<div class="text-purple-600 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)} — ${alerts} alerts">${esc(r.rule)} <span class="text-emerald-500">(${alerts})</span></div>`
           } else {
             listHtml += `<div class="text-amber-400 font-mono text-xs py-0.5 leading-tight" title="${esc(r.rule)} — never fired">⚠ ${esc(r.rule)}</div>`
           }
@@ -855,9 +909,9 @@ function cvSetFilter(f) {
       return `<div>
         <button onclick="toggleDetections('${uid}')" class="flex items-center gap-1.5 hover:opacity-80 transition-opacity text-left">
           ${summary}
-          <svg id="${uid}-chev" class="w-3 h-3 text-slate-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <svg id="${uid}-chev" class="w-3 h-3 text-gray-500 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
-        <div id="${uid}" class="hidden mt-1 pl-1 border-l border-white/10">${listHtml}</div>
+        <div id="${uid}" class="hidden mt-1 pl-1 border-l border-gray-200">${listHtml}</div>
       </div>`
     }
 
@@ -865,9 +919,9 @@ function cvSetFilter(f) {
       const hints = s.close_matches.map(m =>
         `<span class="text-amber-400">${esc(m.library_name)}</span> <span class="text-gray-600">(${m.rule_count} rules)</span>`
       ).join(', ')
-      return `<span class="text-gray-700">—</span> <span class="text-amber-600 text-xs" title="dataSource.name mismatch?">⚠ similar: ${hints}</span>`
+      return `<span class="text-gray-400">—</span> <span class="text-amber-600 text-xs" title="dataSource.name mismatch?">⚠ similar: ${hints}</span>`
     }
-    return `<span class="text-gray-700">—</span>`
+    return `<span class="text-gray-400">—</span>`
   }
 
 
@@ -888,9 +942,9 @@ function cvSetFilter(f) {
   }
 
   document.getElementById('cv-table').innerHTML = sources.length === 0
-    ? '<p class="text-slate-600 text-sm">No sources match this filter.</p>'
-    : `<div class="overflow-x-auto rounded-xl ring-1 ring-white/5"><table class="w-full text-sm">
-        <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+    ? '<p class="text-gray-400 text-sm">No sources match this filter.</p>'
+    : `<div class="overflow-x-auto rounded-xl border border-gray-200"><table class="w-full text-sm">
+        <thead><tr class="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Data Source</th>
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Events (7d)</th>
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
@@ -899,16 +953,16 @@ function cvSetFilter(f) {
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Fields Missing</th>
         </tr></thead>
         <tbody>${sources.map((s, idx) => `
-          <tr class="${idx % 2 === 1 ? 'bg-white/[0.015]' : 'bg-transparent'} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
+          <tr class="${idx % 2 === 1 ? 'bg-gray-50/50' : 'bg-transparent'} border-b border-gray-100 hover:bg-gray-50 transition-colors">
             <td class="py-2.5 px-4 font-mono text-xs">
               <a href="#/quality" onclick="queueQualitySource('${esc(s.source_name)}')"
-                class="text-gray-200 hover:text-purple-400 cursor-pointer transition-colors"
+                class="text-gray-900 hover:text-purple-600 cursor-pointer transition-colors"
                 title="Open in Parser Quality">${esc(s.source_name)}</a>
             </td>
-            <td class="py-2.5 px-4 text-xs text-slate-400">${(s.event_count||0).toLocaleString()}</td>
+            <td class="py-2.5 px-4 text-xs text-gray-500">${(s.event_count||0).toLocaleString()}</td>
             <td class="py-2.5 px-4"><span class="px-2.5 py-1 rounded-full text-xs font-medium border ${STYLES[s.status]||''}">${LABELS[s.status]||s.status}</span></td>
             <td class="py-2.5 px-4 text-xs">${parserCell(s)}</td>
-            <td class="py-2.5 px-4 text-xs text-slate-400">${detectionsCell(s)}</td>
+            <td class="py-2.5 px-4 text-xs text-gray-500">${detectionsCell(s)}</td>
             <td class="py-2.5 px-4 text-xs">${missingFieldsCell(s)}</td>
           </tr>`).join('')}
         </tbody></table></div>`
@@ -927,49 +981,49 @@ function renderIngest() {
   set(`<div class="p-8 max-w-6xl">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-xl font-extrabold text-white tracking-tight">Ingest Dashboard</h1>
-        <p class="text-sm text-slate-400 mt-1">Event volume · cost projection · filter simulator</p>
+        <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Ingest Dashboard</h1>
+        <p class="text-sm text-gray-500 mt-1">Event volume · cost projection · filter simulator</p>
       </div>
       <div class="flex gap-2">
         ${btns.map(b=>`<button onclick="${b.onclick}" id="${b.id}"
-          class="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-slate-400 hover:border-white/20 hover:text-gray-200 transition-colors">${b.label}</button>`).join('')}
+          class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-colors">${b.label}</button>`).join('')}
       </div>
     </div>
     <div id="ig-err"></div>
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 mb-5 shadow-sm">
+    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
       <div class="flex items-baseline gap-2 mb-4">
-        <h2 class="text-sm font-semibold text-white" id="ig-chart-title">Daily Event Volume</h2>
-        <span class="text-xs text-slate-500" id="ig-chart-sub">events ingested per day</span>
+        <h2 class="text-sm font-semibold text-gray-900" id="ig-chart-title">Daily Event Volume</h2>
+        <span class="text-xs text-gray-500" id="ig-chart-sub">events ingested per day</span>
       </div>
-      <div id="ig-chart"><p class="text-slate-500 text-sm">Loading…</p></div>
+      <div id="ig-chart"><p class="text-gray-500 text-sm">Loading…</p></div>
     </div>
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 mb-5 shadow-sm">
-      <h2 class="text-sm font-semibold text-white mb-4">Top Sources</h2>
-      <div id="ig-sources"><p class="text-slate-500 text-sm">Loading…</p></div>
+    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-900 mb-4">Top Sources</h2>
+      <div id="ig-sources"><p class="text-gray-500 text-sm">Loading…</p></div>
     </div>
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <div class="flex items-start justify-between gap-4 mb-3">
         <div>
-          <h2 class="text-sm font-semibold text-white">Filter Simulator</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Before writing an SDL exclusion filter, use this to see how many events and GB it would remove.</p>
+          <h2 class="text-sm font-semibold text-gray-900">Filter Simulator</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Before writing an SDL exclusion filter, use this to see how many events and GB it would remove.</p>
         </div>
         <button onclick="toggleSimHelp()" class="shrink-0 text-xs text-purple-400 hover:text-purple-300 transition-colors">How does this work?</button>
       </div>
 
-      <div id="sim-help" class="hidden mb-4 bg-slate-800/50 ring-1 ring-white/5 rounded-xl p-4 text-xs text-slate-400 space-y-2">
-        <p><span class="text-gray-200 font-medium">What it does:</span> Runs a live PowerQuery against your data lake to count how many events match a source and/or event type, then projects that number into estimated GB and monthly cost savings.</p>
-        <p><span class="text-gray-200 font-medium">When to use it:</span> You've spotted a noisy source in the Top Sources table above (e.g. a source sending millions of low-value events). Enter it here to quantify how much ingest you'd save by filtering it out before committing the change in the SentinelOne console.</p>
-        <p><span class="text-gray-200 font-medium">Source name:</span> Paste the exact value from the <em>dataSource.name</em> column in the Top Sources table — e.g. <code class="bg-gray-900 px-1 rounded">ActivityFeed</code>.</p>
-        <p><span class="text-gray-200 font-medium">Event type:</span> Optional. Narrow the filter to a specific event category (e.g. <code class="bg-gray-900 px-1 rounded">dns</code>, <code class="bg-gray-900 px-1 rounded">heartbeat</code>). Leave blank to simulate dropping the entire source.</p>
-        <p><span class="text-gray-200 font-medium">GB estimate:</span> Based on 0.5 GB per million events — adjust in code if your actual ratio differs.</p>
+      <div id="sim-help" class="hidden mb-4 bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500 space-y-2">
+        <p><span class="text-gray-700 font-medium">What it does:</span> Runs a live PowerQuery against your data lake to count how many events match a source and/or event type, then projects that number into estimated GB and monthly cost savings.</p>
+        <p><span class="text-gray-700 font-medium">When to use it:</span> You've spotted a noisy source in the Top Sources table above (e.g. a source sending millions of low-value events). Enter it here to quantify how much ingest you'd save by filtering it out before committing the change in the SentinelOne console.</p>
+        <p><span class="text-gray-700 font-medium">Source name:</span> Paste the exact value from the <em>dataSource.name</em> column in the Top Sources table — e.g. <code class="bg-gray-100 px-1 rounded">ActivityFeed</code>.</p>
+        <p><span class="text-gray-700 font-medium">Event type:</span> Optional. Narrow the filter to a specific event category (e.g. <code class="bg-gray-100 px-1 rounded">dns</code>, <code class="bg-gray-100 px-1 rounded">heartbeat</code>). Leave blank to simulate dropping the entire source.</p>
+        <p><span class="text-gray-700 font-medium">GB estimate:</span> Based on 0.5 GB per million events — adjust in code if your actual ratio differs.</p>
         <p class="text-amber-400/80">⚠ This is a read-only simulation — no filters are created or applied automatically. Use the results to inform an exclusion filter you create manually in the SentinelOne console.</p>
       </div>
 
       <div class="flex gap-3 flex-wrap mb-4">
         <input id="ig-src" placeholder="Source name — e.g. ActivityFeed"
-          class="flex-1 min-w-48 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
+          class="flex-1 min-w-48 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
         <input id="ig-evt" placeholder="Event type (optional)"
-          class="flex-1 min-w-48 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
+          class="flex-1 min-w-48 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
         <button onclick="igSimulate()" id="btn-sim"
           class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors shadow-sm">Simulate</button>
       </div>
@@ -985,7 +1039,7 @@ function igUpdateButtons() {
   ;[{id:'ig-h1'},{id:'ig-d3'},{id:'ig-d5'},{id:'ig-d7'}].forEach(({id}) => {
     const b = document.getElementById(id)
     if (!b) return
-    b.className = `px-3 py-1.5 text-xs rounded-lg border transition-colors ${id===active ? 'bg-purple-700/80 border-purple-500 text-white shadow-sm' : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-gray-200'}`
+    b.className = `px-3 py-1.5 text-xs rounded-lg border transition-colors ${id===active ? 'bg-purple-600 border-purple-600 text-white shadow-sm' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'}`
   })
 }
 
@@ -1048,21 +1102,21 @@ async function igLoad() {
     const rows = data.map((r, i) => {
       const name = r['dataSource.name'] || r.name || 'unknown'
       const evts = r.events || 0
-      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        <td class="py-2.5 px-1 font-mono text-xs text-gray-200">${esc(name)}</td>
-        <td class="py-2.5 px-1 text-right text-gray-300 tabular-nums">${evts.toLocaleString()}</td>
-        <td class="py-2.5 px-1 text-right text-slate-400 tabular-nums">${(evts/1e6*0.5).toFixed(3)}</td>
+      return `<tr class="${i % 2 === 1 ? 'bg-gray-50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="py-2.5 px-1 font-mono text-xs text-gray-900">${esc(name)}</td>
+        <td class="py-2.5 px-1 text-right text-gray-700 tabular-nums">${evts.toLocaleString()}</td>
+        <td class="py-2.5 px-1 text-right text-gray-500 tabular-nums">${(evts/1e6*0.5).toFixed(3)}</td>
       </tr>`
     })
     document.getElementById('ig-sources').innerHTML = rows.length ? `
       <table class="w-full text-sm">
-        <thead><tr class="text-left text-slate-500 border-b border-white/5">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-100">
           <th class="pb-2.5 font-medium text-xs uppercase tracking-wide">Source</th>
           <th class="pb-2.5 text-right font-medium text-xs uppercase tracking-wide">Events</th>
           <th class="pb-2.5 text-right font-medium text-xs uppercase tracking-wide">Est. GB</th>
         </tr></thead>
         <tbody>${rows.join('')}</tbody>
-      </table>` : `<p class="text-slate-500 text-sm">No data in this period.</p>`
+      </table>` : `<p class="text-gray-500 text-sm">No data in this period.</p>`
   } else {
     document.getElementById('ig-sources').innerHTML = `<p class="text-red-400 text-sm">${esc(sourcesResult.reason?.message ?? 'Error')}</p>`
   }
@@ -1109,24 +1163,24 @@ Raw log sample:
 function renderOnboarding() {
   set(`<div class="p-8 max-w-3xl space-y-8">
     <div>
-      <h1 class="text-xl font-extrabold text-white tracking-tight">Onboarding Accelerator</h1>
-      <p class="text-sm text-slate-400 mt-1">Use Claude Code directly — no API key required</p>
+      <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Onboarding Accelerator</h1>
+      <p class="text-sm text-gray-500 mt-1">Use Claude Code directly — no API key required</p>
     </div>
 
     <!-- Source Onboarding Pipeline -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <div class="flex items-start justify-between mb-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Source Onboarding Pipeline</h2>
-          <p class="text-xs text-slate-500 mt-0.5">6-stage lifecycle tracker for every active data source</p>
+          <h2 class="text-base font-semibold text-gray-900">Source Onboarding Pipeline</h2>
+          <p class="text-xs text-gray-500 mt-0.5">6-stage lifecycle tracker for every active data source</p>
         </div>
         <button onclick="obTogglePipeline()" id="btn-ob-pipeline-toggle"
-          class="text-xs text-slate-400 hover:text-gray-200 px-3 py-1.5 rounded-lg bg-slate-800/60 hover:bg-slate-700/60 transition-colors">
+          class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors">
           Show Pipeline
         </button>
       </div>
       <div id="ob-pipeline-stats" class="flex flex-col gap-2">
-        <div class="px-3 py-1.5 rounded-full bg-slate-800/60 text-xs text-slate-500 animate-pulse">Loading…</div>
+        <div class="px-3 py-1.5 rounded-full bg-gray-100 text-xs text-gray-400 animate-pulse">Loading…</div>
       </div>
       <div id="ob-pipeline-table" class="hidden mt-4"></div>
     </div>
@@ -1140,23 +1194,23 @@ function renderOnboarding() {
     </div>
 
     <!-- Prompt template -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl overflow-hidden shadow-sm">
-      <div class="px-4 py-3 border-b border-white/5 flex items-center justify-between bg-slate-900/40">
-        <span class="text-xs font-medium text-slate-400 uppercase tracking-wide">Prompt template</span>
-        <button onclick="obCopy()" id="btn-copy" class="px-2.5 py-1 text-xs text-slate-400 hover:text-gray-200 hover:bg-white/5 rounded-lg transition-colors">Copy</button>
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+      <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+        <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Prompt template</span>
+        <button onclick="obCopy()" id="btn-copy" class="px-2.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">Copy</button>
       </div>
-      <pre class="p-4 text-xs text-gray-300 font-mono leading-relaxed whitespace-pre-wrap">${esc(PROMPT)}</pre>
+      <pre class="p-4 text-xs text-gray-700 font-mono leading-relaxed whitespace-pre-wrap">${esc(PROMPT)}</pre>
     </div>
   </div>`)
   loadOnboardingPipeline()
 }
 
 function obStep(title, desc) {
-  return `<div class="flex gap-4 bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-4 hover:ring-white/10 transition-all">
-    <div class="w-8 h-8 shrink-0 rounded-lg bg-purple-900/50 ring-1 ring-purple-700/40 flex items-center justify-center text-purple-300 text-xs mt-0.5">→</div>
+  return `<div class="flex gap-4 bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all">
+    <div class="w-8 h-8 shrink-0 rounded-lg bg-purple-100 border border-purple-200 flex items-center justify-center text-purple-600 text-xs mt-0.5">→</div>
     <div>
-      <div class="text-sm font-semibold text-white">${esc(title)}</div>
-      <div class="text-sm text-slate-400 mt-1">${esc(desc)}</div>
+      <div class="text-sm font-semibold text-gray-900">${esc(title)}</div>
+      <div class="text-sm text-gray-500 mt-1">${esc(desc)}</div>
     </div>
   </div>`
 }
@@ -1192,14 +1246,14 @@ async function loadOnboardingPipeline() {
 
     statsEl.innerHTML = `
       <div class="flex items-center gap-2">
-        <span class="px-3 py-1.5 rounded-full bg-purple-900/40 ring-1 ring-purple-700/40 text-xs text-purple-300">Full Pipeline: ${withRules.length} sources</span>
-        <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Complete: ${fullDone}</span>
-        <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${fullProg}</span>
+        <span class="px-3 py-1.5 rounded-full bg-purple-100 border border-purple-200 text-xs text-purple-700">Full Pipeline: ${withRules.length} sources</span>
+        <span class="px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">✓ Complete: ${fullDone}</span>
+        <span class="px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-700">⟳ In Progress: ${fullProg}</span>
       </div>
       <div class="flex items-center gap-2">
-        <span class="px-3 py-1.5 rounded-full bg-slate-700/40 ring-1 ring-slate-600/40 text-xs text-slate-300">Partial Pipeline: ${withoutRules.length} sources</span>
-        <span class="px-3 py-1.5 rounded-full bg-emerald-900/40 ring-1 ring-emerald-700/40 text-xs text-emerald-300">✓ Complete: ${partialDone}</span>
-        <span class="px-3 py-1.5 rounded-full bg-amber-900/40 ring-1 ring-amber-700/40 text-xs text-amber-300">⟳ In Progress: ${partialProg}</span>
+        <span class="px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200 text-xs text-gray-700">Partial Pipeline: ${withoutRules.length} sources</span>
+        <span class="px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs text-emerald-700">✓ Complete: ${partialDone}</span>
+        <span class="px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-xs text-amber-700">⟳ In Progress: ${partialProg}</span>
       </div>`
 
     const STAGE_ICONS = ['📥','📄','⚙️','🏷️','🔍','🔔']
@@ -1207,21 +1261,21 @@ async function loadOnboardingPipeline() {
 
     function renderRow(s, i) {
       const stageDots = s.stages.map((st, si) => {
-        if (st.na) return `<span class="cursor-default text-base text-slate-800" title="${esc(st.stage)} — N/A (no detection rules mapped)">—</span>`
-        return `<span class="cursor-default text-base ${st.done ? 'text-emerald-400' : 'text-slate-700'}" title="${esc(st.stage)}">${STAGE_ICONS[si] || '●'}</span>`
+        if (st.na) return `<span class="cursor-default text-base text-gray-300" title="${esc(st.stage)} — N/A (no detection rules mapped)">—</span>`
+        return `<span class="cursor-default text-base ${st.done ? 'text-emerald-400' : 'text-gray-400'}" title="${esc(st.stage)}">${STAGE_ICONS[si] || '●'}</span>`
       }).join('')
       const pct = s.pct
       const barColor = pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
-      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        <td class="py-2.5 px-4 font-mono text-xs text-gray-200 max-w-xs truncate" title="${esc(s.source)}">${esc(s.source)}</td>
+      return `<tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="py-2.5 px-4 font-mono text-xs text-gray-900 max-w-xs truncate" title="${esc(s.source)}">${esc(s.source)}</td>
         <td class="py-2.5 px-4">
           <div class="flex items-center gap-1.5">${stageDots}</div>
-          <div class="h-1 mt-1.5 bg-slate-800 rounded-full overflow-hidden w-24">
+          <div class="h-1 mt-1.5 bg-gray-200 rounded-full overflow-hidden w-24">
             <div class="h-full ${barColor} rounded-full" style="width:${pct}%"></div>
           </div>
         </td>
-        <td class="py-2.5 px-4 text-xs text-slate-500 tabular-nums">${s.completed}/${s.total}</td>
-        <td class="py-2.5 px-4 text-xs text-slate-500 tabular-nums">${(s.event_count||0).toLocaleString()}</td>
+        <td class="py-2.5 px-4 text-xs text-gray-500 tabular-nums">${s.completed}/${s.total}</td>
+        <td class="py-2.5 px-4 text-xs text-gray-500 tabular-nums">${(s.event_count||0).toLocaleString()}</td>
       </tr>`
     }
 
@@ -1230,9 +1284,9 @@ async function loadOnboardingPipeline() {
       const incomplete = sectionSources.filter(s => s.completed < s.total)
       const complete   = sectionSources.filter(s => s.completed === s.total)
       const toggleBtn  = complete.length > 0
-        ? `<tr id="${idPrefix}-toggle-row" class="border-b border-white/5">
+        ? `<tr id="${idPrefix}-toggle-row" class="border-b border-gray-100">
             <td colspan="4" class="py-2 px-4">
-              <button onclick="obToggleSection('${idPrefix}')" class="text-xs text-slate-500 hover:text-gray-300 transition-colors">
+              <button onclick="obToggleSection('${idPrefix}')" class="text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 <span id="${idPrefix}-toggle-label">Show completed (${complete.length})</span>
               </button>
             </td>
@@ -1241,12 +1295,12 @@ async function loadOnboardingPipeline() {
       return `
         <div class="mb-5">
           <div class="flex items-center gap-2 mb-2">
-            <span class="text-xs font-semibold text-slate-300 uppercase tracking-wide">${esc(title)}</span>
-            <span class="text-xs text-slate-600">${esc(desc)}</span>
+            <span class="text-xs font-semibold text-gray-700 uppercase tracking-wide">${esc(title)}</span>
+            <span class="text-xs text-gray-400">${esc(desc)}</span>
           </div>
-          <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+          <div class="overflow-x-auto rounded-xl border border-gray-200">
             <table class="w-full text-sm">
-              <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+              <thead><tr class="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
                 <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Source</th>
                 <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Pipeline Stages</th>
                 <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Progress</th>
@@ -1261,12 +1315,12 @@ async function loadOnboardingPipeline() {
     }
 
     tableEl.innerHTML = `
-      <div class="text-xs text-slate-600 mb-3 flex flex-wrap gap-3">
+      <div class="text-xs text-gray-400 mb-3 flex flex-wrap gap-3">
         ${STAGE_ICONS.map((icon,i) => `<span>${icon} ${STAGE_LABELS[i]}</span>`).join('')}
       </div>
       ${renderSection('Full Pipeline', `${withRules.length} sources — detection rules mapped (all 6 stages)`, withRules, 'ob-with')}
       ${renderSection('Partial Pipeline', `${withoutRules.length} sources — no detection rules mapped (stages 5–6 N/A)`, withoutRules, 'ob-without')}
-      ${sources.length === 0 ? '<p class="text-slate-600 text-sm text-center py-4">No active sources found — sync sources on the Coverage Map first.</p>' : ''}`
+      ${sources.length === 0 ? '<p class="text-gray-400 text-sm text-center py-4">No active sources found — sync sources on the Coverage Map first.</p>' : ''}`
   } catch(e) {
     if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
   }
@@ -1297,8 +1351,8 @@ function obToggleSection(idPrefix) {
 
 async function renderSettings() {
   set(`<div class="p-8 max-w-2xl mx-auto space-y-6">
-    <h1 class="text-xl font-extrabold text-white tracking-tight">Settings</h1>
-    <div id="st-content"><p class="text-slate-500 text-sm">Loading…</p></div>
+    <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Settings</h1>
+    <div id="st-content"><p class="text-gray-500 text-sm">Loading…</p></div>
   </div>`)
   try {
     const { fields, env_file_exists, env_file_path } = await apiGet('/api/settings/config')
@@ -1309,74 +1363,87 @@ async function renderSettings() {
 }
 
 function renderSettingsForm(fields, envExists, envPath) {
-  const setupBanner = !envExists ? `
-    <div class="bg-blue-950/50 ring-1 ring-blue-700/40 rounded-xl p-4 text-sm mb-4">
-      <p class="font-semibold text-blue-300 mb-2">First-time setup</p>
-      <p class="text-blue-200/80 mb-3">No <code class="bg-slate-900 px-1 rounded">.env</code> file found. Create one from the template to get started:</p>
-      <div class="bg-slate-950 rounded-lg p-3 font-mono text-xs text-green-300 space-y-1">
-        <div><span class="text-slate-500"># in your project directory:</span></div>
-        <div>cp .env.example .env</div>
-        <div><span class="text-slate-500"># edit .env with your credentials, then:</span></div>
-        <div>docker-compose up -d --build</div>
-      </div>
-    </div>` : ''
+  // Separate console-credential fields from other env fields
+  const consoleKeys = new Set(['S1_BASE_URL','S1_API_TOKEN','SDL_XDR_URL','SDL_LOG_READ_KEY','SDL_CONFIG_READ_KEY'])
+  const otherFields = fields.filter(f => !consoleKeys.has(f.key))
 
-  const fieldRows = fields.map(f => `
+  const fieldRow = f => `
     <div class="space-y-1">
-      <label class="block text-xs font-medium text-gray-400 uppercase tracking-wide">${esc(f.label)}</label>
+      <label class="block text-xs font-medium text-gray-600 uppercase tracking-wide">${esc(f.label)}</label>
       <div class="flex gap-2">
-        ${f.type === 'select' ? `
-        <select id="st-${f.key}" data-key="${f.key}" data-secret="false"
-          class="flex-1 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
-          ${(f.options||[]).map(o => `<option value="${esc(o)}" ${f.value===o?'selected':''}>${esc(o)}</option>`).join('')}
-        </select>` : `
         <input
           id="st-${f.key}"
           type="${f.secret ? 'password' : 'text'}"
-          placeholder="${esc(f.value || f.placeholder)}"
+          placeholder="${esc(f.value || f.placeholder || '')}"
           value=""
           data-key="${f.key}"
           data-secret="${f.secret}"
-          class="flex-1 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-100 placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors font-${f.secret ? 'mono' : 'sans'}"
+          class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors font-${f.secret ? 'mono' : 'sans'}"
         >
-        ${f.secret ? `<button onclick="toggleSecret('st-${f.key}')" class="px-3 py-2 rounded-lg border border-white/10 text-slate-400 hover:text-gray-100 text-xs hover:border-white/20 transition-colors">Show</button>` : ''}`}
+        ${f.secret ? `<button onclick="toggleSecret('st-${f.key}')" class="px-3 py-2 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 text-xs hover:border-gray-300 transition-colors">Show</button>` : ''}
       </div>
-      ${f.hint ? `<p class="text-xs text-gray-600">${esc(f.hint)}</p>` : ''}
-      ${f.type !== 'select' ? (f.set ? `<p class="text-xs text-gray-600">Currently set${f.secret ? ' (masked)' : ': ' + esc(f.value)}</p>` : `<p class="text-xs text-amber-600">Not configured</p>`) : ''}
-    </div>`).join('')
+      ${f.hint ? `<p class="text-xs text-gray-500">${esc(f.hint)}</p>` : ''}
+      ${f.set ? `<p class="text-xs text-gray-500">Currently set${f.secret ? ' (masked)' : ': ' + esc(f.value)}</p>` : `<p class="text-xs text-amber-600">Not configured</p>`}
+    </div>`
 
   document.getElementById('st-content').innerHTML = `
-    ${setupBanner}
 
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 space-y-5 shadow-sm">
-      <div class="flex items-center justify-between">
-        <h2 class="font-semibold text-white text-sm">Environment Configuration</h2>
-        <span class="text-xs text-slate-500 font-mono">${esc(envPath)}</span>
+    <!-- Console Management -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <div class="flex items-start gap-4">
+        <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center shrink-0 mt-0.5">
+          <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path stroke-linecap="round" d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <div class="flex-1">
+          <h2 class="font-semibold text-gray-900 text-sm mb-1">Console Credentials</h2>
+          <p class="text-xs text-gray-500 mb-3">SentinelOne console URLs, API tokens, and SDL keys are now managed per-environment from the <strong class="text-gray-700">Live Consoles</strong> card on the Overview page. Add or switch consoles there — no restart required.</p>
+          <div class="flex gap-2">
+            <a href="#/" class="px-3 py-1.5 text-xs bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors">Go to Overview →</a>
+          </div>
+          <div class="mt-4 pt-4 border-t border-gray-100 space-y-1 text-xs text-gray-500">
+            <p><span class="text-gray-700 font-medium">S1 Console URL / API Token</span> — Generate a service user token at <span class="text-gray-700">Policies and settings → Users → Service Users</span>.</p>
+            <p><span class="text-gray-700 font-medium">SDL XDR URL / Log Read Key</span> — Found at <span class="text-gray-700">Policies and settings → Integrations → Data Lake API Keys</span>.</p>
+            <p><span class="text-gray-700 font-medium">Config Read Key</span> — SDL key with <em>Manage config files</em> permission. Required for <strong class="text-gray-700">Sync SDL Parsers</strong> to auto-fetch parsers from the console.</p>
+          </div>
+        </div>
       </div>
-      <p class="text-xs text-slate-500">Leave a field blank to keep its current value. Changes are written to <code class="bg-slate-800 px-1 rounded">.env</code> and take effect after restarting the backend (<code class="bg-slate-800 px-1 rounded">docker-compose up -d --build backend</code>).</p>
-      <div class="space-y-4">${fieldRows}</div>
+    </div>
+
+    <!-- Other env settings (Anthropic key etc.) -->
+    ${otherFields.length ? `
+    <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-5 shadow-sm">
+      <div class="flex items-center justify-between">
+        <h2 class="font-semibold text-gray-900 text-sm">Application Settings</h2>
+        <span class="text-xs text-gray-400 font-mono">${esc(envPath)}</span>
+      </div>
+      <p class="text-xs text-gray-500">These settings are written to <code class="bg-gray-100 px-1 rounded">.env</code> and require a backend restart to take effect.</p>
+      <div class="space-y-4">${otherFields.map(fieldRow).join('')}</div>
       <div class="flex items-center gap-3 pt-2">
         <button onclick="saveSettings()" id="st-save" class="px-4 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg text-sm font-medium text-white transition-colors shadow-sm">Save to .env</button>
         <span id="st-msg" class="text-sm"></span>
       </div>
-    </div>
+    </div>` : ''}
 
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 space-y-3 shadow-sm">
-      <h2 class="font-semibold text-white text-sm">Manual Setup</h2>
-      <p class="text-xs text-slate-400">Prefer editing the file directly? Copy the template and fill in your credentials:</p>
-      <div class="bg-slate-950 rounded-lg p-4 font-mono text-xs text-gray-300 space-y-1">
-        <div><span class="text-slate-600"># 1. Copy the template</span></div>
-        <div class="text-green-400">cp .env.example .env</div>
-        <div class="mt-2"><span class="text-slate-600"># 2. Open and edit</span></div>
-        <div class="text-green-400">nano .env</div>
-        <div class="mt-2"><span class="text-slate-600"># 3. Rebuild & restart</span></div>
-        <div class="text-green-400">docker-compose up -d --build</div>
-      </div>
-      <div class="pt-1 space-y-1 text-xs text-gray-500">
-        <p><span class="text-gray-400 font-medium">S1_BASE_URL / S1_API_TOKEN</span> — SentinelOne console URL and service user API token. Generate the token at <span class="text-gray-400">Policies and settings → Users → Service Users</span>.</p>
-        <p><span class="text-gray-400 font-medium">SDL_XDR_URL / SDL_LOG_READ_KEY</span> — Singularity Data Lake credentials for PowerQuery. Found at <span class="text-gray-400">Policies and settings → Integrations → Data Lake API Keys</span>.</p>
-        <p><span class="text-gray-400 font-medium">SDL_CONFIG_READ_KEY</span> — SDL API key with <em>Manage config files</em> permission. Required for <strong class="text-gray-400">Sync SDL Parsers</strong> to auto-fetch parsers from <code>/logParsers/</code> in the console.</p>
-        <p><span class="text-gray-400 font-medium">ANTHROPIC_API_KEY</span> — Optional. Required only for the Onboarding AI assistant. Get it at <span class="text-gray-400">console.anthropic.com</span>.</p>
+    <!-- Key reference -->
+    <div class="bg-white border border-gray-200 rounded-xl p-5 space-y-3 shadow-sm">
+      <h2 class="font-semibold text-gray-900 text-sm">Getting API Keys</h2>
+      <div class="space-y-2 text-xs text-gray-500">
+        <div class="flex gap-3 p-3 bg-gray-50 rounded-lg">
+          <div class="w-1.5 rounded-full bg-purple-400 shrink-0 mt-0.5"></div>
+          <div><span class="text-gray-700 font-medium">S1 API Token</span> — SentinelOne console → <em>Policies and settings → Users → Service Users</em>. Needs appropriate scope for rules and detection library access.</div>
+        </div>
+        <div class="flex gap-3 p-3 bg-gray-50 rounded-lg">
+          <div class="w-1.5 rounded-full bg-blue-400 shrink-0 mt-0.5"></div>
+          <div><span class="text-gray-700 font-medium">SDL Log Read Key</span> — SentinelOne console → <em>Policies and settings → Integrations → Data Lake API Keys</em>. Used for PowerQuery.</div>
+        </div>
+        <div class="flex gap-3 p-3 bg-gray-50 rounded-lg">
+          <div class="w-1.5 rounded-full bg-indigo-400 shrink-0 mt-0.5"></div>
+          <div><span class="text-gray-700 font-medium">SDL Config Read Key</span> — Same location, select <em>Manage config files</em> permission. Required to auto-sync parsers from <code class="bg-gray-100 px-1 rounded">/logParsers/</code>.</div>
+        </div>
+        <div class="flex gap-3 p-3 bg-gray-50 rounded-lg">
+          <div class="w-1.5 rounded-full bg-amber-400 shrink-0 mt-0.5"></div>
+          <div><span class="text-gray-700 font-medium">Anthropic API Key</span> — <em>console.anthropic.com</em>. Optional — only needed for the Onboarding AI assistant.</div>
+        </div>
       </div>
     </div>`
 }
@@ -1414,19 +1481,19 @@ async function saveSettings() {
 function renderQuality() {
   set(`<div class="p-8 max-w-5xl space-y-6">
     <div>
-      <h1 class="text-xl font-extrabold text-white tracking-tight">Parser Quality</h1>
-      <p class="text-sm text-slate-400 mt-1">Sample live events from any source · measure field population rates · test parser patterns against raw logs · identify parsers with missing attributes</p>
+      <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Parser Quality</h1>
+      <p class="text-sm text-gray-500 mt-1">Sample live events from any source · measure field population rates · test parser patterns against raw logs · identify parsers with missing attributes</p>
     </div>
 
     <!-- Live Event Sampler -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
-      <h2 class="text-sm font-semibold text-white mb-1">Live Event Sampler</h2>
-      <p class="text-xs text-slate-500 mb-4">Pull recent raw events from a source and see exactly which fields landed — and which are missing.</p>
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-900 mb-1">Live Event Sampler</h2>
+      <p class="text-xs text-gray-500 mb-4">Pull recent raw events from a source and see exactly which fields landed — and which are missing.</p>
       <div class="flex gap-3 flex-wrap mb-4">
-        <select id="qs-source" class="flex-1 min-w-60 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
+        <select id="qs-source" class="flex-1 min-w-60 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
           <option value="">— loading sources… —</option>
         </select>
-        <select id="qs-hours" class="bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+        <select id="qs-hours" class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-purple-500 transition-colors">
           <option value="1">Last 1h</option>
           <option value="6">Last 6h</option>
           <option value="24" selected>Last 24h</option>
@@ -1435,7 +1502,7 @@ function renderQuality() {
           <option value="336">Last 14d</option>
           <option value="720">Last 30d</option>
         </select>
-        <select id="qs-limit" class="bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+        <select id="qs-limit" class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-purple-500 transition-colors">
           <option value="10" selected>10 events</option>
           <option value="20">20 events</option>
           <option value="50">50 events</option>
@@ -1447,14 +1514,14 @@ function renderQuality() {
     </div>
 
     <!-- Field Population Rate -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
-      <h2 class="text-sm font-semibold text-white mb-1">Field Population Rate</h2>
-      <p class="text-xs text-slate-500 mb-4">Sample up to 500 events and measure what % have each key field populated. Low rates flag parser extraction failures.</p>
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-900 mb-1">Field Population Rate</h2>
+      <p class="text-xs text-gray-500 mb-4">Sample up to 500 events and measure what % have each key field populated. Low rates flag parser extraction failures.</p>
       <div class="flex gap-3 flex-wrap mb-3">
-        <select id="qp-source" onchange="qpDiscoverFields()" class="flex-1 min-w-60 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
+        <select id="qp-source" onchange="qpDiscoverFields()" class="flex-1 min-w-60 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
           <option value="">— loading sources… —</option>
         </select>
-        <select id="qp-hours" onchange="qpDiscoverFields()" class="bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+        <select id="qp-hours" onchange="qpDiscoverFields()" class="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-purple-500 transition-colors">
           <option value="1">Last 1h</option>
           <option value="6">Last 6h</option>
           <option value="24" selected>Last 24h</option>
@@ -1467,33 +1534,33 @@ function renderQuality() {
           class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors shadow-sm">Analyze</button>
       </div>
       <div class="mb-3">
-        <label class="text-xs text-slate-500 block mb-1">Fields to check <span class="text-slate-600">(comma-separated)</span></label>
+        <label class="text-xs text-gray-500 block mb-1">Fields to check <span class="text-gray-400">(comma-separated)</span></label>
         <input id="qp-fields" value="src.ip,dst.ip,user.name,event.type,src.process.name,src.process.cmdline,tgt.file.path,network.direction"
-          class="w-full bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 font-mono focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
+          class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 font-mono focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
       </div>
       <div id="qp-result"></div>
     </div>
 
     <!-- Parser Test Runner -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
-      <h2 class="text-sm font-semibold text-white mb-1">Parser Test Runner</h2>
-      <p class="text-xs text-slate-500 mb-4">Paste a raw log line and pick a loaded parser — see which fields the format patterns would extract without deploying anything.</p>
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-900 mb-1">Parser Test Runner</h2>
+      <p class="text-xs text-gray-500 mb-4">Paste a raw log line and pick a loaded parser — see which fields the format patterns would extract without deploying anything.</p>
       <div class="flex gap-3 flex-wrap mb-3">
-        <select id="qt-parser" class="flex-1 bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-300 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
+        <select id="qt-parser" class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors">
           <option value="">— select parser —</option>
         </select>
         <button onclick="qtTest()" id="btn-qt"
           class="px-4 py-2 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors shadow-sm">Test</button>
       </div>
       <textarea id="qt-log" rows="3" placeholder="Paste raw log line here…"
-        class="w-full bg-slate-800/80 border border-white/10 rounded-lg px-3 py-2 text-xs text-gray-300 font-mono placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors mb-3"></textarea>
+        class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-700 font-mono placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors mb-3"></textarea>
       <div id="qt-result"></div>
     </div>
 
     <!-- Attributes Missing -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-amber-800/30 rounded-xl p-5 shadow-sm border-t-2 border-t-amber-700/30">
-      <h2 class="text-sm font-semibold text-white mb-1">Attributes Missing</h2>
-      <p class="text-xs text-slate-500 mb-4">Parser files loaded from SDL that are missing the <code class="bg-slate-800 px-1 rounded">dataSource.name</code> attribute — add it to the parser's <code class="bg-slate-800 px-1 rounded">attributes</code> block to enable full coverage tracking.</p>
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm border-t-2 border-t-amber-500">
+      <h2 class="text-sm font-semibold text-gray-900 mb-1">Attributes Missing</h2>
+      <p class="text-xs text-gray-500 mb-4">Parser files loaded from SDL that are missing the <code class="bg-gray-100 px-1 rounded">dataSource.name</code> attribute — add it to the parser's <code class="bg-gray-100 px-1 rounded">attributes</code> block to enable full coverage tracking.</p>
       <div id="qa-stubs-result">
         <button onclick="qaLoadStubs()" class="px-4 py-2 text-sm bg-amber-700 hover:bg-amber-600 rounded-lg text-white font-medium transition-colors shadow-sm">Load Attributes Missing</button>
       </div>
@@ -1553,29 +1620,29 @@ async function qsSample() {
       const msgCell = `<td class="py-2 px-2 w-full">
         <div class="flex items-start gap-2">
           <button onclick="qsCopyMsg(this, ${ri})" data-msg="${esc(raw).replace(/"/g, '&quot;')}"
-            class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-md text-slate-600 hover:text-gray-200 hover:bg-white/10 transition-colors text-xs leading-none"
+            class="shrink-0 mt-0.5 px-1.5 py-0.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors text-xs leading-none"
             title="Copy raw log">⎘</button>
-          <span class="font-mono text-xs text-gray-300 break-all" title="${esc(raw)}">${esc(raw.slice(0, 200))}${raw.length > 200 ? '<span class="text-gray-600">…</span>' : ''}</span>
+          <span class="font-mono text-xs text-gray-700 break-all" title="${esc(raw)}">${esc(raw.slice(0, 200))}${raw.length > 200 ? '<span class="text-gray-400">…</span>' : ''}</span>
         </div>
       </td>`
-      return `<tr class="border-b border-white/5 hover:bg-white/[0.03] transition-colors">${msgCell}</tr>`
+      return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">${msgCell}</tr>`
     }).join('')
     // Parsed-fields summary (collapsible pill list, not a wide table)
     const fieldPills = hasParsedFields
       ? `<details class="mt-3">
-           <summary class="text-xs text-gray-600 cursor-pointer hover:text-gray-400">${otherFields.length} parsed fields available in sample ▸</summary>
+           <summary class="text-xs text-gray-500 cursor-pointer hover:text-gray-700">${otherFields.length} parsed fields available in sample ▸</summary>
            <div class="flex flex-wrap gap-1 mt-2">${otherFields.map(f =>
-             `<span class="px-1.5 py-0.5 rounded-md bg-slate-800/80 ring-1 ring-white/5 text-slate-500 text-xs font-mono">${esc(f)}</span>`
+             `<span class="px-1.5 py-0.5 rounded-md bg-gray-100 border border-gray-200 text-gray-500 text-xs font-mono">${esc(f)}</span>`
            ).join('')}</div>
          </details>` : ''
     document.getElementById('qs-result').innerHTML = `
       <div class="flex items-center justify-between mb-2">
-        <p class="text-xs text-slate-500">${r.count} events · ${r.hours}h window</p>
-        <button onclick="qsCopyAll(this)" class="px-2 py-1 text-xs bg-slate-700 hover:bg-slate-600 ring-1 ring-white/10 rounded-lg text-gray-300 flex items-center gap-1 transition-colors">⎘ Copy All</button>
+        <p class="text-xs text-gray-500">${r.count} events · ${r.hours}h window</p>
+        <button onclick="qsCopyAll(this)" class="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg text-gray-600 flex items-center gap-1 transition-colors">⎘ Copy All</button>
       </div>
-      <div class="max-h-72 overflow-y-auto rounded-xl ring-1 ring-white/5">
+      <div class="max-h-72 overflow-y-auto rounded-xl border border-gray-200">
         <table class="text-xs w-full">
-          <thead class="sticky top-0 bg-slate-900 text-slate-500 border-b border-white/5">
+          <thead class="sticky top-0 bg-gray-50 text-gray-500 border-b border-gray-200">
             <tr><th class="pb-2 px-2 pt-2 text-left font-medium text-xs uppercase tracking-wide">Raw Log</th></tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -1666,21 +1733,21 @@ async function qpAnalyze() {
       const pct = f.rate
       const color = pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'
       const textColor = pct >= 80 ? 'text-emerald-400' : pct >= 40 ? 'text-amber-400' : 'text-red-400'
-      return `<tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
-        <td class="py-2.5 pr-4 font-mono text-xs text-gray-200">${esc(f.field)}</td>
+      return `<tr class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="py-2.5 pr-4 font-mono text-xs text-gray-900">${esc(f.field)}</td>
         <td class="py-2.5 pr-4 text-xs ${textColor} font-semibold w-16 tabular-nums">${pct}%</td>
         <td class="py-2.5 pr-4 w-48">
-          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div class="h-1.5 bg-gray-200 rounded-full overflow-hidden">
             <div class="h-full ${color} rounded-full transition-all" style="width:${pct}%"></div>
           </div>
         </td>
-        <td class="py-2.5 text-xs text-slate-600 tabular-nums">${f.populated.toLocaleString()} / ${f.total.toLocaleString()}</td>
+        <td class="py-2.5 text-xs text-gray-400 tabular-nums">${f.populated.toLocaleString()} / ${f.total.toLocaleString()}</td>
       </tr>`
     }).join('')
     document.getElementById('qp-result').innerHTML = `
-      <p class="text-xs text-slate-500 mb-3">${r.total_sampled} events sampled · ${r.hours}h window — sorted by best coverage first</p>
+      <p class="text-xs text-gray-500 mb-3">${r.total_sampled} events sampled · ${r.hours}h window — sorted by best coverage first</p>
       <table class="w-full mb-4">
-        <thead><tr class="text-left text-slate-500 border-b border-white/5">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-100">
           <th class="pb-2 pr-4 text-xs font-medium uppercase tracking-wide">Field</th>
           <th class="pb-2 pr-4 text-xs font-medium uppercase tracking-wide">Rate</th>
           <th class="pb-2 pr-4 text-xs font-medium uppercase tracking-wide">Coverage</th>
@@ -1689,10 +1756,10 @@ async function qpAnalyze() {
         <tbody>${rows}</tbody>
       </table>
       ${r.fields_seen_in_sample?.length ? `
-        <div class="border-t border-white/5 pt-3">
-          <p class="text-xs text-slate-500 mb-1">Fields actually present in sample <span class="text-slate-600">(${r.fields_seen_in_sample.length} total)</span></p>
+        <div class="border-t border-gray-100 pt-3">
+          <p class="text-xs text-gray-500 mb-1">Fields actually present in sample <span class="text-gray-400">(${r.fields_seen_in_sample.length} total)</span></p>
           <div class="flex flex-wrap gap-1">${r.fields_seen_in_sample.map(f =>
-            `<span class="px-2 py-0.5 bg-slate-800/80 ring-1 ring-white/5 rounded-lg text-xs font-mono text-slate-400">${esc(f)}</span>`).join('')}
+            `<span class="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded-lg text-xs font-mono text-gray-500">${esc(f)}</span>`).join('')}
           </div>
         </div>` : ''}`
   } catch(e) {
@@ -1758,16 +1825,16 @@ async function qaLoadStubs() {
       return
     }
     const rows = stubs.map((s, i) => `
-      <tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        <td class="py-2.5 pr-4 font-mono text-xs text-amber-300">${esc(s.parser_name)}</td>
-        <td class="py-2.5 text-xs text-slate-500">
-          Add <code class="bg-slate-800 px-1 rounded-md text-amber-400">"dataSource.name": "…"</code> to the parser's attributes block
+      <tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="py-2.5 pr-4 font-mono text-xs text-amber-600">${esc(s.parser_name)}</td>
+        <td class="py-2.5 text-xs text-gray-500">
+          Add <code class="bg-amber-50 border border-amber-200 px-1 rounded-md text-amber-700">"dataSource.name": "…"</code> to the parser's attributes block
         </td>
       </tr>`).join('')
     el.innerHTML = `
-      <p class="text-xs text-slate-500 mb-3">${stubs.length} parser${stubs.length !== 1 ? 's' : ''} missing dataSource.name</p>
+      <p class="text-xs text-gray-500 mb-3">${stubs.length} parser${stubs.length !== 1 ? 's' : ''} missing dataSource.name</p>
       <table class="w-full text-sm">
-        <thead><tr class="text-left text-slate-500 border-b border-white/5">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-100">
           <th class="pb-2 pr-4 text-xs font-medium uppercase tracking-wide">Parser</th>
           <th class="pb-2 text-xs font-medium uppercase tracking-wide">Fix</th>
         </tr></thead>
@@ -1789,50 +1856,50 @@ async function qtTest() {
     const r = await apiPost('/api/quality/test-parser', { parser_name: parser, log_line: log })
     if (!r.matched) {
       document.getElementById('qt-result').innerHTML = `
-        <div class="p-3 bg-amber-900/30 border border-amber-700/50 rounded-lg text-sm text-amber-300">
+        <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
           ⚠ ${esc(r.message || 'No format pattern matched this log line.')}
-          <p class="text-xs text-amber-500 mt-1">The parser's format strings didn't produce a match. Check that the log sample matches the expected format, or that the parser uses grok/dottedJson which aren't tested here.</p>
+          <p class="text-xs text-amber-600 mt-1">The parser's format strings didn't produce a match. Check that the log sample matches the expected format, or that the parser uses grok/dottedJson which aren't tested here.</p>
         </div>`
       return
     }
     const extracts = (r.fields || []).filter(f => f.source !== 'rewrite')
     const rewrites = (r.fields || []).filter(f => f.source === 'rewrite')
-    const rowsExtract = extracts.map((f, i) => `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.03] transition-colors">
-      <td class="py-1.5 pr-4 font-mono text-xs text-purple-300">${esc(f.field)}</td>
-      <td class="py-1.5 font-mono text-xs text-gray-200">${esc(String(f.value))}</td>
+    const rowsExtract = extracts.map((f, i) => `<tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td class="py-1.5 pr-4 font-mono text-xs text-purple-600">${esc(f.field)}</td>
+      <td class="py-1.5 font-mono text-xs text-gray-700">${esc(String(f.value))}</td>
     </tr>`).join('')
-    const rowsRewrite = rewrites.map((f, i) => `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.03] transition-colors">
-      <td class="py-1.5 pr-4 font-mono text-xs text-emerald-300">${esc(f.field)}</td>
-      <td class="py-1.5 font-mono text-xs text-gray-200">${esc(String(f.value))}</td>
+    const rowsRewrite = rewrites.map((f, i) => `<tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td class="py-1.5 pr-4 font-mono text-xs text-emerald-600">${esc(f.field)}</td>
+      <td class="py-1.5 font-mono text-xs text-gray-700">${esc(String(f.value))}</td>
     </tr>`).join('')
     const modeBadge = r.mode === 'json'
-      ? '<span class="px-2 py-0.5 ml-2 text-xs rounded bg-purple-900/60 border border-purple-700 text-purple-300">JSON auto-extract</span>'
-      : '<span class="px-2 py-0.5 ml-2 text-xs rounded bg-blue-900/60 border border-blue-700 text-blue-300">regex format</span>'
+      ? '<span class="px-2 py-0.5 ml-2 text-xs rounded bg-purple-100 border border-purple-300 text-purple-700">JSON auto-extract</span>'
+      : '<span class="px-2 py-0.5 ml-2 text-xs rounded bg-blue-100 border border-blue-300 text-blue-700">regex format</span>'
     const counts = r.mode === 'json'
       ? `<span class="text-gray-500">${r.extracted_count} extracted · ${r.derived_count} rewritten` +
         (r.payload_count > 1 ? ` · showing payload ${r.showing_payload}/${r.payload_count}` : '') +
         `</span>` : ''
     const parseWarn = (r.parse_errors && r.parse_errors.length)
-      ? `<div class="mt-2 p-2 bg-amber-900/30 border border-amber-700/50 rounded text-xs text-amber-300">
+      ? `<div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
            ${r.parse_errors.length} line(s) skipped: ${r.parse_errors.slice(0,3).map(esc).join(' | ')}${r.parse_errors.length>3?' …':''}
          </div>` : ''
     document.getElementById('qt-result').innerHTML = `
-      <div class="mb-3 p-3 bg-slate-800/50 ring-1 ring-white/5 rounded-xl text-xs text-slate-500 font-mono break-all">
-        <span class="text-slate-600">Matched format: </span>${esc(r.format_matched)} ${modeBadge}
+      <div class="mb-3 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-500 font-mono break-all">
+        <span class="text-gray-400">Matched format: </span>${esc(r.format_matched)} ${modeBadge}
         <div class="mt-1">${counts}</div>
         ${parseWarn}
       </div>
       <table class="w-full mb-4">
-        <thead><tr class="text-left text-slate-500 border-b border-white/5">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-100">
           <th class="pb-2 pr-4 text-xs font-medium uppercase tracking-wide">Extracted Field</th>
           <th class="pb-2 text-xs font-medium uppercase tracking-wide">Value</th>
         </tr></thead>
         <tbody>${rowsExtract}</tbody>
       </table>
       ${rewrites.length ? `
-      <h4 class="text-xs font-semibold text-emerald-300 mb-2">Derived (rewrites applied — ${rewrites.length})</h4>
+      <h4 class="text-xs font-semibold text-emerald-600 mb-2">Derived (rewrites applied — ${rewrites.length})</h4>
       <table class="w-full">
-        <thead><tr class="text-left text-slate-500 border-b border-white/5">
+        <thead><tr class="text-left text-gray-500 border-b border-gray-100">
           <th class="pb-2 pr-4 text-xs font-medium uppercase tracking-wide">Output Field</th>
           <th class="pb-2 text-xs font-medium uppercase tracking-wide">Value</th>
         </tr></thead>
@@ -1864,7 +1931,7 @@ function _pqRenderHistory() {
   el.innerHTML = `<div class="flex flex-wrap gap-1.5 mb-2">
     ${_pqHistory.map((q, i) => `
       <button onclick="pqFillQuery(${i})"
-        class="px-2.5 py-1 text-xs bg-slate-800/80 hover:bg-slate-700/80 ring-1 ring-white/5 rounded-lg text-slate-400 hover:text-gray-200 transition-colors font-mono truncate max-w-xs"
+        class="px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700 transition-colors font-mono truncate max-w-xs"
         title="${esc(q)}">${esc(q.slice(0, 60))}${q.length > 60 ? '…' : ''}</button>`).join('')}
   </div>`
 }
@@ -1878,28 +1945,28 @@ async function renderQuery() {
   _pqLoadHistory()
   set(`<div class="p-8 max-w-5xl space-y-6">
     <div>
-      <h1 class="text-xl font-extrabold text-white tracking-tight">PowerQuery Playground</h1>
-      <p class="text-sm text-slate-400 mt-1">Run Scalyr PowerQueries directly against the Singularity Data Lake</p>
+      <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">PowerQuery Playground</h1>
+      <p class="text-sm text-gray-500 mt-1">Run Scalyr PowerQueries directly against the Singularity Data Lake</p>
     </div>
 
     <!-- Controls row -->
-    <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-5 shadow-sm">
+    <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <div class="flex flex-wrap items-center gap-3 mb-4">
-        <span class="text-xs text-slate-500 uppercase tracking-wide shrink-0">Time range</span>
+        <span class="text-xs text-gray-500 uppercase tracking-wide shrink-0">Time range</span>
         ${[['1h','hours',1],['6h','hours',6],['24h','hours',24],['7d','days',7],['30d','days',30]].map(([lbl,unit,val]) =>
           `<button onclick="pqSetRange('${unit}',${val})" id="pq-range-${unit}-${val}"
-            class="px-3 py-1.5 text-xs rounded-lg border border-white/10 text-slate-400 hover:border-white/20 hover:text-gray-200 transition-colors">${lbl}</button>`
+            class="px-3 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-colors">${lbl}</button>`
         ).join('')}
         <div class="flex items-center gap-2 ml-auto">
-          <label class="text-xs text-slate-500">Max results</label>
+          <label class="text-xs text-gray-500">Max results</label>
           <input id="pq-max" type="number" value="1000" min="1" max="10000"
-            class="w-24 bg-slate-800/80 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+            class="w-24 bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-purple-500 transition-colors">
         </div>
       </div>
 
       <!-- Preset queries -->
       <div id="pq-presets" class="flex flex-wrap gap-1.5 mb-4">
-        <span class="text-xs text-slate-600 self-center">Loading presets…</span>
+        <span class="text-xs text-gray-400 self-center">Loading presets…</span>
       </div>
 
       <!-- Query history -->
@@ -1907,14 +1974,14 @@ async function renderQuery() {
 
       <!-- Query textarea -->
       <textarea id="pq-query" rows="8" placeholder="| group events=count() by dataSource.name | sort -events | limit 25"
-        class="w-full bg-slate-900/80 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200 font-mono placeholder-slate-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors mb-3 resize-y"></textarea>
+        class="w-full bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 font-mono placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-colors mb-3 resize-y"></textarea>
 
       <div class="flex items-center gap-3">
         <button onclick="pqRun()" id="btn-pq-run"
           class="px-5 py-2 text-sm bg-purple-700 hover:bg-purple-600 rounded-lg text-white font-medium transition-colors shadow-sm">Run Query</button>
         <button onclick="pqExportCSV()" id="btn-pq-csv"
-          class="px-4 py-2 text-sm bg-slate-700 hover:bg-slate-600 ring-1 ring-white/10 rounded-lg text-gray-300 font-medium transition-colors hidden">Export CSV</button>
-        <span id="pq-row-info" class="text-xs text-slate-500"></span>
+          class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-lg text-gray-600 font-medium transition-colors hidden">Export CSV</button>
+        <span id="pq-row-info" class="text-xs text-gray-500"></span>
       </div>
     </div>
 
@@ -1935,7 +2002,7 @@ async function renderQuery() {
     if (presetsEl && p.presets?.length) {
       presetsEl.innerHTML = p.presets.map((pr, i) =>
         `<button onclick="pqUsePreset(${i})"
-          class="px-2.5 py-1 text-xs bg-purple-900/40 hover:bg-purple-800/60 ring-1 ring-purple-700/40 rounded-lg text-purple-300 hover:text-purple-200 transition-colors"
+          class="px-2.5 py-1 text-xs bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-purple-700 hover:text-purple-800 transition-colors"
           data-query="${esc(pr.query)}">${esc(pr.label)}</button>`
       ).join('')
       window._pqPresets = p.presets
@@ -1948,7 +2015,7 @@ function pqHighlightRange() {
     const id = b.id.replace('pq-range-', '')
     const [unit, val] = id.split('-')
     const active = unit === window._pqRangeUnit && +val === window._pqRangeVal
-    b.className = `px-3 py-1.5 text-xs rounded-lg border transition-colors ${active ? 'bg-purple-700/80 border-purple-500 text-white shadow-sm' : 'border-white/10 text-slate-400 hover:border-white/20 hover:text-gray-200'}`
+    b.className = `px-3 py-1.5 text-xs rounded-lg border transition-colors ${active ? 'bg-purple-600 border-purple-600 text-white shadow-sm' : 'border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'}`
   })
 }
 
@@ -1969,7 +2036,7 @@ async function pqRun() {
   const query = document.getElementById('pq-query')?.value?.trim()
   if (!query) return
   setBtn('btn-pq-run', true, 'Running…')
-  document.getElementById('pq-results').innerHTML = '<p class="text-slate-500 text-sm animate-pulse">Querying data lake…</p>'
+  document.getElementById('pq-results').innerHTML = '<p class="text-gray-500 text-sm animate-pulse">Querying data lake…</p>'
   document.getElementById('btn-pq-csv')?.classList.add('hidden')
   document.getElementById('pq-row-info').textContent = ''
 
@@ -1990,7 +2057,7 @@ async function pqRun() {
     if (rowInfoEl) rowInfoEl.textContent = `${r.rows} row${r.rows !== 1 ? 's' : ''} · ${r.from?.slice(0,10)} → ${r.to?.slice(0,10)}`
 
     if (!_pqResults.length) {
-      document.getElementById('pq-results').innerHTML = '<p class="text-slate-500 text-sm">No results returned.</p>'
+      document.getElementById('pq-results').innerHTML = '<p class="text-gray-500 text-sm">No results returned.</p>'
       return
     }
 
@@ -2000,17 +2067,17 @@ async function pqRun() {
 
     const headers = cols.map(c => `<th class="py-2 px-3 font-medium text-xs uppercase tracking-wide text-left whitespace-nowrap">${esc(c)}</th>`).join('')
     const rows = displayRows.map((ev, i) =>
-      `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        ${cols.map(c => `<td class="py-2 px-3 text-xs text-gray-300 font-mono max-w-xs truncate" title="${esc(String(ev[c] ?? ''))}">${esc(String(ev[c] ?? ''))}</td>`).join('')}
+      `<tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        ${cols.map(c => `<td class="py-2 px-3 text-xs text-gray-700 font-mono max-w-xs truncate" title="${esc(String(ev[c] ?? ''))}">${esc(String(ev[c] ?? ''))}</td>`).join('')}
       </tr>`
     ).join('')
 
     document.getElementById('pq-results').innerHTML = `
-      <div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl overflow-hidden shadow-sm">
-        ${_pqResults.length > MAX_ROWS ? `<div class="px-4 py-2 bg-amber-950/40 border-b border-amber-800/30 text-xs text-amber-400">Showing first ${MAX_ROWS} of ${_pqResults.length} rows</div>` : ''}
+      <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+        ${_pqResults.length > MAX_ROWS ? `<div class="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-700">Showing first ${MAX_ROWS} of ${_pqResults.length} rows</div>` : ''}
         <div class="overflow-x-auto max-h-[480px] overflow-y-auto">
           <table class="w-full text-sm">
-            <thead class="sticky top-0 bg-slate-900 border-b border-white/5 text-slate-500">
+            <thead class="sticky top-0 bg-gray-50 border-b border-gray-200 text-gray-500">
               <tr>${headers}</tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -2020,7 +2087,7 @@ async function pqRun() {
 
     document.getElementById('btn-pq-csv')?.classList.remove('hidden')
   } catch(e) {
-    document.getElementById('pq-results').innerHTML = `<div class="p-3 bg-red-950/60 ring-1 ring-red-700/50 rounded-xl text-sm text-red-300">${esc(e.message)}</div>`
+    document.getElementById('pq-results').innerHTML = `<div class="p-3 bg-red-50 ring-1 ring-red-200 rounded-xl text-sm text-red-700">${esc(e.message)}</div>`
   } finally {
     setBtn('btn-pq-run', false, 'Run Query')
   }
@@ -2043,16 +2110,16 @@ function pqExportCSV() {
 function renderThreat() {
   set(`<div class="p-8 max-w-6xl space-y-8">
     <div>
-      <h1 class="text-xl font-extrabold text-white tracking-tight">Threat Coverage</h1>
-      <p class="text-sm text-slate-400 mt-1">MITRE ATT&amp;CK heatmap and detection rule firing status</p>
+      <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Threat Coverage</h1>
+      <p class="text-sm text-gray-500 mt-1">MITRE ATT&amp;CK heatmap and detection rule firing status</p>
     </div>
 
     <!-- MITRE ATT&CK Heatmap -->
     <div>
       <div class="flex items-start justify-between mb-4">
         <div>
-          <h2 class="text-base font-semibold text-white">MITRE ATT&amp;CK Coverage</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Detection rules mapped to ATT&amp;CK tactics and techniques</p>
+          <h2 class="text-base font-semibold text-gray-900">MITRE ATT&amp;CK Coverage</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Detection rules mapped to ATT&amp;CK tactics and techniques</p>
         </div>
         <button id="btn-sync-library-threat" onclick="syncLibraryThreat()"
           class="px-3 py-1.5 text-sm bg-blue-700 hover:bg-blue-600 rounded-lg text-white font-medium transition-colors shadow-sm">
@@ -2062,7 +2129,7 @@ function renderThreat() {
       <div id="mitre-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6"></div>
       <div id="mitre-err"></div>
       <div id="mitre-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        <div class="col-span-full text-slate-600 text-sm text-center py-8">Loading MITRE coverage…</div>
+        <div class="col-span-full text-gray-400 text-sm text-center py-8">Loading MITRE coverage…</div>
       </div>
     </div>
 
@@ -2070,11 +2137,11 @@ function renderThreat() {
     <div>
       <div class="flex items-start justify-between mb-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Rule Firing Status</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Rules that have never triggered an alert may be misconfigured or require data sources not yet active.</p>
+          <h2 class="text-base font-semibold text-gray-900">Rule Firing Status</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Rules that have never triggered an alert may be misconfigured or require data sources not yet active.</p>
         </div>
         <div class="flex items-center gap-2">
-          <select id="firing-period" class="bg-slate-800/80 border border-white/10 rounded-lg px-2 py-1.5 text-sm text-gray-300 focus:outline-none focus:border-purple-500 transition-colors">
+          <select id="firing-period" class="bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:border-purple-500 transition-colors">
             <option value="7">Last 7d</option>
             <option value="14">Last 14d</option>
             <option value="30" selected>Last 30d</option>
@@ -2096,16 +2163,16 @@ function renderThreat() {
     <div>
       <div class="flex items-start justify-between mb-4">
         <div>
-          <h2 class="text-base font-semibold text-white">Rule Dependency Map</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Which data sources each detection rule requires — flags rules whose sources are missing or have no parser.</p>
+          <h2 class="text-base font-semibold text-gray-900">Rule Dependency Map</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Which data sources each detection rule requires — flags rules whose sources are missing or have no parser.</p>
         </div>
-        <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer select-none">
-          <input type="checkbox" id="depmap-at-risk-only" onchange="depMapRender()" class="rounded border-white/20 bg-slate-800 text-purple-500 focus:ring-purple-500/30">
+        <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+          <input type="checkbox" id="depmap-at-risk-only" onchange="depMapRender()" class="rounded border-gray-300 bg-white text-purple-500 focus:ring-purple-500/30">
           Show At-Risk Only
         </label>
       </div>
       <div id="depmap-stats" class="grid grid-cols-3 gap-3 mb-4"></div>
-      <div id="depmap-table"><p class="text-slate-600 text-sm text-center py-8 animate-pulse">Loading dependency map…</p></div>
+      <div id="depmap-table"><p class="text-gray-400 text-sm text-center py-8 animate-pulse">Loading dependency map…</p></div>
     </div>
   </div>`)
   loadMitre()
@@ -2120,7 +2187,7 @@ async function syncLibraryThreat() {
   try {
     const r = await apiPost('/api/coverage/load-detections', {})
     if (errEl) {
-      errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ring-emerald-700/50 rounded-xl text-sm text-emerald-300 mb-4">&#x2713; ${r.loaded} detection rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`
+      errEl.innerHTML = `<div class="p-3 bg-emerald-50 ring-1 ring-emerald-200 rounded-xl text-sm text-emerald-700 mb-4">&#x2713; ${r.loaded} detection rules synced from ${r.source === 'api' ? 'S1 API' : 'local file'}</div>`
       setTimeout(() => { errEl.innerHTML = '' }, 4000)
     }
     loadMitre()
@@ -2133,41 +2200,41 @@ async function loadMitre() {
   const gridEl = document.getElementById('mitre-grid')
   const statsEl = document.getElementById('mitre-stats')
   if (!gridEl) return
-  gridEl.innerHTML = '<div class="col-span-full text-slate-600 text-sm text-center py-8 animate-pulse">Loading MITRE coverage…</div>'
+  gridEl.innerHTML = '<div class="col-span-full text-gray-400 text-sm text-center py-8 animate-pulse">Loading MITRE coverage…</div>'
   try {
     const data = await apiGet('/api/coverage/mitre')
 
     // Stats row
     if (statsEl) {
       statsEl.innerHTML = `
-        ${statCard('Total Library Rules', data.total_rules, 'text-gray-200')}
+        ${statCard('Total Library Rules', data.total_rules, 'text-gray-900')}
         ${statCard('Rules with MITRE Mapping', data.rules_with_mitre, 'text-purple-400')}
         ${statCard('Tactics Covered', data.tactic_count, 'text-blue-400')}
         ${statCard('Techniques Covered', data.total_techniques, 'text-emerald-400')}`
     }
 
     if (!data.tactics || data.tactics.length === 0) {
-      gridEl.innerHTML = `<div class="col-span-full bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-8 text-center text-slate-500 text-sm">
+      gridEl.innerHTML = `<div class="col-span-full bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500 text-sm">
         No MITRE data found. Sync the Detection Library to populate MITRE mappings.
       </div>`
       return
     }
 
     gridEl.innerHTML = data.tactics.map(t => {
-      const borderColor = t.rule_count >= 20 ? 'border-l-purple-500' : t.rule_count >= 5 ? 'border-l-blue-500' : 'border-l-slate-600'
-      const badgeColor  = t.rule_count >= 20 ? 'bg-purple-900/60 text-purple-300 border-purple-700' : t.rule_count >= 5 ? 'bg-blue-900/60 text-blue-300 border-blue-700' : 'bg-slate-800/60 text-slate-400 border-slate-700'
+      const borderColor = t.rule_count >= 20 ? 'border-l-purple-500' : t.rule_count >= 5 ? 'border-l-blue-500' : 'border-l-gray-300'
+      const badgeColor  = t.rule_count >= 20 ? 'bg-purple-100 text-purple-700 border-purple-300' : t.rule_count >= 5 ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-100 text-gray-500 border-gray-300'
 
       const bodyId  = 'mitre-body-'   + t.tactic.replace(/[^a-z0-9]/gi, '_')
       const chevId  = 'mitre-chev-'   + t.tactic.replace(/[^a-z0-9]/gi, '_')
 
       const MAX_SHOWN = 12
       const chips = t.techniques.slice(0, MAX_SHOWN).map(tech =>
-        `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-slate-800/80 ring-1 ring-white/5 text-slate-400 font-mono" title="${esc(tech.name)}">${esc(tech.id || tech.name)}</span>`
+        `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-gray-100 border border-gray-200 text-gray-500 font-mono" title="${esc(tech.name)}">${esc(tech.id || tech.name)}</span>`
       ).join('')
 
       const expandId = 'mitre-expand-' + t.tactic.replace(/[^a-z0-9]/gi, '_')
       const moreChips = t.techniques.slice(MAX_SHOWN).map(tech =>
-        `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-slate-800/80 ring-1 ring-white/5 text-slate-400 font-mono" title="${esc(tech.name)}">${esc(tech.id || tech.name)}</span>`
+        `<span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-gray-100 border border-gray-200 text-gray-500 font-mono" title="${esc(tech.name)}">${esc(tech.id || tech.name)}</span>`
       ).join('')
       const moreSection = t.techniques.length > MAX_SHOWN ? `
         <div id="${expandId}" class="hidden flex flex-wrap gap-1 mt-1">${moreChips}</div>
@@ -2177,22 +2244,22 @@ async function loadMitre() {
       const techCount = t.techniques.length
       const bodyContent = techCount > 0
         ? `<div class="flex flex-wrap gap-1">${chips}</div>${moreSection}`
-        : `<p class="text-xs text-slate-600">No technique IDs mapped</p>`
+        : `<p class="text-xs text-gray-400">No technique IDs mapped</p>`
 
-      return `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl border-l-4 ${borderColor} shadow-sm overflow-hidden">
-        <button onclick="mitreToggleTactic('${bodyId}','${chevId}')" class="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors text-left">
+      return `<div class="bg-white border border-gray-200 rounded-xl border-l-4 ${borderColor} shadow-sm overflow-hidden">
+        <button onclick="mitreToggleTactic('${bodyId}','${chevId}')" class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left">
           <div class="flex items-center gap-2.5">
-            <span class="font-semibold text-white text-sm">${esc(t.tactic)}</span>
-            ${techCount > 0 ? `<span class="text-xs text-slate-500">${techCount} technique${techCount !== 1 ? 's' : ''}</span>` : ''}
+            <span class="font-semibold text-gray-900 text-sm">${esc(t.tactic)}</span>
+            ${techCount > 0 ? `<span class="text-xs text-gray-400">${techCount} technique${techCount !== 1 ? 's' : ''}</span>` : ''}
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span class="px-2 py-0.5 rounded-full text-xs font-medium border ${badgeColor}">${t.rule_count} rule${t.rule_count !== 1 ? 's' : ''}</span>
-            <svg id="${chevId}" class="w-3.5 h-3.5 text-slate-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg id="${chevId}" class="w-3.5 h-3.5 text-gray-500 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </div>
         </button>
-        <div id="${bodyId}" class="hidden px-4 pb-3 pt-1 border-t border-white/5">${bodyContent}</div>
+        <div id="${bodyId}" class="hidden px-4 pb-3 pt-1 border-t border-gray-100">${bodyContent}</div>
       </div>`
     }).join('')
   } catch(e) {
@@ -2236,10 +2303,10 @@ async function syncRuleFiring() {
     const period = +document.getElementById('firing-period').value || 30
     const r = await apiPost(`/api/coverage/sync-rule-firing?period_days=${period}`, {})
     if (r.message) {
-      if (errEl) errEl.innerHTML = `<div class="p-3 bg-amber-950/60 ring-1 ring-amber-700/50 rounded-xl text-sm text-amber-300 mb-4">&#9888; ${esc(r.message)}</div>`
+      if (errEl) errEl.innerHTML = `<div class="p-3 bg-amber-50 ring-1 ring-amber-200 rounded-xl text-sm text-amber-700 mb-4">&#9888; ${esc(r.message)}</div>`
     } else {
       if (errEl) {
-        errEl.innerHTML = `<div class="p-3 bg-emerald-950/60 ring-1 ring-emerald-700/50 rounded-xl text-sm text-emerald-300 mb-4">&#x2713; Synced ${r.synced} rules over ${r.period_days}d</div>`
+        errEl.innerHTML = `<div class="p-3 bg-emerald-50 ring-1 ring-emerald-200 rounded-xl text-sm text-emerald-700 mb-4">&#x2713; Synced ${r.synced} rules over ${r.period_days}d</div>`
         setTimeout(() => { errEl.innerHTML = '' }, 4000)
       }
       loadFiringStatus()
@@ -2259,15 +2326,15 @@ async function loadFiringStatus() {
 
     if (!data.rules || data.rules.length === 0) {
       summaryEl.innerHTML = ''
-      tableEl.innerHTML = `<div class="bg-gradient-to-b from-gray-900 to-gray-950 ring-1 ring-white/5 rounded-xl p-6 text-center text-sm text-slate-500">
-        No firing data cached yet. Click <strong class="text-slate-300">Sync Alert Firing Status</strong> to query the SDL.
+      tableEl.innerHTML = `<div class="bg-white border border-gray-200 rounded-xl p-6 text-center text-sm text-gray-500">
+        No firing data cached yet. Click <strong class="text-gray-700">Sync Alert Firing Status</strong> to query the SDL.
       </div>`
       return
     }
 
     summaryEl.innerHTML = `
       <div class="grid grid-cols-3 gap-3 mb-4">
-        ${statCard('Rules Monitored', s.rules_monitored, 'text-gray-200')}
+        ${statCard('Rules Monitored', s.rules_monitored, 'text-gray-900')}
         ${statCard(`Fired in ${s.period_days}d`, s.fired_in_period, 'text-emerald-400')}
         ${statCard('Never Fired', s.never_fired, s.never_fired > 0 ? 'text-amber-400' : 'text-gray-500')}
       </div>`
@@ -2275,19 +2342,19 @@ async function loadFiringStatus() {
     const top20 = data.rules.slice(0, 20)
     const rows = top20.map((r, i) => {
       const badge = r.alert_count > 0
-        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">Active</span>`
-        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-900/50 text-amber-300 border-amber-700">Silent</span>`
-      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        <td class="py-2.5 px-4 font-mono text-xs text-gray-200">${esc(r.rule_name)}</td>
-        <td class="py-2.5 px-4 text-xs text-slate-300 tabular-nums">${r.alert_count.toLocaleString()}</td>
+        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-50 text-emerald-700 border-emerald-300">Active</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-50 text-amber-700 border-amber-300">Silent</span>`
+      return `<tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="py-2.5 px-4 font-mono text-xs text-gray-900">${esc(r.rule_name)}</td>
+        <td class="py-2.5 px-4 text-xs text-gray-700 tabular-nums">${r.alert_count.toLocaleString()}</td>
         <td class="py-2.5 px-4">${badge}</td>
       </tr>`
     }).join('')
 
     tableEl.innerHTML = `
-      <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+      <div class="overflow-x-auto rounded-xl border border-gray-200">
         <table class="w-full text-sm">
-          <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+          <thead><tr class="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
             <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Rule Name</th>
             <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Alerts (${s.period_days}d)</th>
             <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Status</th>
@@ -2295,7 +2362,7 @@ async function loadFiringStatus() {
           <tbody>${rows}</tbody>
         </table>
       </div>
-      ${s.checked_at ? `<p class="text-xs text-slate-600 mt-2">Last synced: ${new Date(s.checked_at).toLocaleString()}</p>` : ''}`
+      ${s.checked_at ? `<p class="text-xs text-gray-400 mt-2">Last synced: ${new Date(s.checked_at).toLocaleString()}</p>` : ''}`
   } catch(e) {
     if (tableEl) tableEl.innerHTML = `<p class="text-red-400 text-sm">${esc(e.message)}</p>`
   }
@@ -2309,14 +2376,14 @@ async function loadDependencyMap() {
   const statsEl = document.getElementById('depmap-stats')
   const tableEl = document.getElementById('depmap-table')
   if (!statsEl || !tableEl) return
-  tableEl.innerHTML = '<p class="text-slate-600 text-sm text-center py-8 animate-pulse">Loading dependency map…</p>'
+  tableEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-8 animate-pulse">Loading dependency map…</p>'
   try {
     _depMapData = await apiGet('/api/coverage/dependency-map')
     if (statsEl) {
       statsEl.innerHTML = `
         ${statCard('At Risk', _depMapData.at_risk, _depMapData.at_risk > 0 ? 'text-red-400' : 'text-gray-500')}
         ${statCard('Healthy', _depMapData.healthy, 'text-emerald-400')}
-        ${statCard('No Source Requirements', _depMapData.no_source_requirements, 'text-slate-400')}`
+        ${statCard('No Source Requirements', _depMapData.no_source_requirements, 'text-gray-500')}`
     }
     depMapRender()
   } catch(e) {
@@ -2334,14 +2401,14 @@ function depMapRender() {
   const display = atRiskOnly ? rules : rules.filter(r => !r.no_sources).concat(rules.filter(r => r.no_sources))
 
   if (!display.length) {
-    tableEl.innerHTML = '<p class="text-slate-600 text-sm text-center py-8">No rules match the current filter.</p>'
+    tableEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">No rules match the current filter.</p>'
     return
   }
 
   const SOURCE_STATUS_STYLE = {
-    healthy:  'bg-emerald-900/50 text-emerald-300 border-emerald-700',
-    inactive: 'bg-red-900/50 text-red-300 border-red-700',
-    no_parser:'bg-amber-900/50 text-amber-300 border-amber-700',
+    healthy:  'bg-emerald-50 text-emerald-700 border-emerald-300',
+    inactive: 'bg-red-50 text-red-700 border-red-300',
+    no_parser:'bg-amber-50 text-amber-700 border-amber-300',
   }
 
   // Shared column widths — must match outer table colgroup
@@ -2351,18 +2418,18 @@ function depMapRender() {
   function ruleRows(ruleList) {
     return ruleList.map((r, i) => {
       const statusBadge = r.at_risk
-        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-red-900/50 text-red-300 border-red-700">⚠ At Risk</span>`
-        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-900/50 text-emerald-300 border-emerald-700">✓ Covered</span>`
+        ? `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-red-50 text-red-700 border-red-300">⚠ At Risk</span>`
+        : `<span class="px-2 py-0.5 rounded-full text-xs font-medium border bg-emerald-50 text-emerald-700 border-emerald-300">✓ Covered</span>`
       const sourceBadges = r.no_sources
-        ? `<span class="text-xs text-slate-600">—</span>`
+        ? `<span class="text-xs text-gray-400">—</span>`
         : r.sources.map(s =>
             `<span class="px-1.5 py-0.5 rounded border text-xs font-mono ${SOURCE_STATUS_STYLE[s.status] || ''}" title="${s.status}">${esc(s.source)}</span>`
           ).join(' ')
       const alerts = r.generated_alerts != null
-        ? `<span class="text-xs tabular-nums ${r.generated_alerts > 0 ? 'text-emerald-400' : 'text-slate-600'}">${r.generated_alerts.toLocaleString()}</span>`
-        : `<span class="text-xs text-slate-700">—</span>`
-      return `<tr class="${i % 2 === 1 ? 'bg-white/[0.015]' : ''} border-b border-white/5 hover:bg-white/[0.04] transition-colors">
-        <td class="py-2.5 pl-12 pr-4 text-xs text-gray-200 font-medium">${esc(r.rule)}</td>
+        ? `<span class="text-xs tabular-nums ${r.generated_alerts > 0 ? 'text-emerald-400' : 'text-gray-400'}">${r.generated_alerts.toLocaleString()}</span>`
+        : `<span class="text-xs text-gray-400">—</span>`
+      return `<tr class="${i % 2 === 1 ? 'bg-gray-50/50' : ''} border-b border-gray-100 hover:bg-gray-50 transition-colors">
+        <td class="py-2.5 pl-12 pr-4 text-xs text-gray-900 font-medium">${esc(r.rule)}</td>
         <td class="py-2.5 px-4 text-xs"><div class="flex flex-wrap gap-1">${sourceBadges}</div></td>
         <td class="py-2.5 px-4 text-center">${statusBadge}</td>
         <td class="py-2.5 px-4 text-right text-xs tabular-nums">${alerts}</td>
@@ -2383,17 +2450,17 @@ function depMapRender() {
       const uid = prefix + '_' + product.replace(/[^a-z0-9]/gi, '_')
       const atRiskCount = prodRules.filter(r => r.at_risk).length
       const countBadge = atRiskCount > 0
-        ? `<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-900/50 text-red-300 border-red-700">⚠ ${atRiskCount} at risk</span>`
-        : `<span class="ml-2 text-xs text-slate-500">${prodRules.length} rule${prodRules.length !== 1 ? 's' : ''}</span>`
+        ? `<span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium border bg-red-50 text-red-700 border-red-300">⚠ ${atRiskCount} at risk</span>`
+        : `<span class="ml-2 text-xs text-gray-500">${prodRules.length} rule${prodRules.length !== 1 ? 's' : ''}</span>`
       return `
-        <tr class="bg-slate-800/40 hover:bg-slate-800/60 border-b border-white/5 cursor-pointer select-none transition-colors"
+        <tr class="bg-gray-50 hover:bg-gray-100 border-b border-gray-100 cursor-pointer select-none transition-colors"
             onclick="toggleDepMapProduct('${uid}')">
           <td colspan="4" class="py-2 pl-8 pr-4">
             <div class="flex items-center gap-2">
-              <svg id="${uid}-chev" class="w-3 h-3 text-slate-500 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg id="${uid}-chev" class="w-3 h-3 text-gray-400 transition-transform shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
               </svg>
-              <span class="text-xs font-medium text-slate-300 uppercase tracking-wide">${esc(product)}</span>
+              <span class="text-xs font-medium text-gray-700 uppercase tracking-wide">${esc(product)}</span>
               ${countBadge}
             </div>
           </td>
@@ -2411,12 +2478,12 @@ function depMapRender() {
   function categorySection(label, categoryRules, uid, isRisk) {
     if (!categoryRules.length) return ''
     const startOpen = isRisk  // At Risk expanded by default, Covered collapsed
-    const headerBg = isRisk ? 'bg-red-900/30 hover:bg-red-900/40' : 'bg-emerald-900/20 hover:bg-emerald-900/30'
-    const chevColor = isRisk ? 'text-red-400' : 'text-emerald-400'
-    const labelColor = isRisk ? 'text-red-300' : 'text-emerald-300'
-    const countColor = isRisk ? 'text-red-400' : 'text-emerald-400'
+    const headerBg = isRisk ? 'bg-red-50 hover:bg-red-100' : 'bg-emerald-50 hover:bg-emerald-100'
+    const chevColor = isRisk ? 'text-red-500' : 'text-emerald-500'
+    const labelColor = isRisk ? 'text-red-700' : 'text-emerald-700'
+    const countColor = isRisk ? 'text-red-600' : 'text-emerald-600'
     return `
-      <tr class="${headerBg} border-b border-white/10 cursor-pointer select-none transition-colors"
+      <tr class="${headerBg} border-b border-gray-200 cursor-pointer select-none transition-colors"
           onclick="toggleDepMapProduct('${uid}')">
         <td colspan="4" class="py-3 px-4">
           <div class="flex items-center gap-2">
@@ -2425,7 +2492,7 @@ function depMapRender() {
             </svg>
             <span class="text-sm font-bold ${labelColor} uppercase tracking-wider">${label}</span>
             <span class="text-sm font-bold ${countColor}">${categoryRules.length}</span>
-            <span class="text-xs text-slate-500">rule${categoryRules.length !== 1 ? 's' : ''}</span>
+            <span class="text-xs text-gray-500">rule${categoryRules.length !== 1 ? 's' : ''}</span>
           </div>
         </td>
       </tr>
@@ -2435,10 +2502,10 @@ function depMapRender() {
   }
 
   tableEl.innerHTML = `
-    <div class="overflow-x-auto rounded-xl ring-1 ring-white/5">
+    <div class="overflow-x-auto rounded-xl border border-gray-200">
       <table class="w-full text-sm">
         ${COL_GROUP}
-        <thead><tr class="text-left text-slate-500 bg-slate-900/60 border-b border-white/5">
+        <thead><tr class="text-left text-gray-500 bg-gray-50 border-b border-gray-200">
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Rule Name</th>
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide">Required Sources</th>
           <th class="py-3 px-4 font-medium text-xs uppercase tracking-wide text-center">Status</th>
@@ -2450,7 +2517,7 @@ function depMapRender() {
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-slate-600 mt-2">Source badges: <span class="text-emerald-400">green</span> = healthy · <span class="text-red-400">red</span> = inactive · <span class="text-amber-400">amber</span> = no parser</p>`
+    <p class="text-xs text-gray-400 mt-2">Source badges: <span class="text-emerald-600">green</span> = healthy · <span class="text-red-500">red</span> = inactive · <span class="text-amber-500">amber</span> = no parser</p>`
 }
 
 function toggleDepMapProduct(uid) {
@@ -2468,7 +2535,7 @@ function set(html) { document.getElementById('main').innerHTML = html }
 function updateNav(page) {
   document.querySelectorAll('.nav-link').forEach(el => {
     const on = el.dataset.page === page
-    el.className = `nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${on ? 'bg-purple-700/20 text-purple-300 border-l-2 border-purple-500 pl-[10px] font-medium' : 'text-slate-400 hover:bg-white/5 hover:text-gray-100 border-l-2 border-transparent pl-[10px]'}`
+    el.className = `nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors ${on ? 'bg-purple-600 text-white font-medium' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`
   })
 }
 
