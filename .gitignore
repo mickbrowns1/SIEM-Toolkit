@@ -8,3 +8,8 @@ frontend/out/
 pgdata/
 parsers/*.json
 data/
+
+# Sigma->PowerQuery pipeline: real tenant credentials live here.
+# Use tenant_config.example.json as the template.
+tenant_config.json
+deployed_rule_ids.json

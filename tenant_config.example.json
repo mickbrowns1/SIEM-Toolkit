@@ -1,0 +1,8 @@
+{
+  "_comment_": "Copy to tenant_config.json and fill in. tenant_config.json is gitignored. See README_sigma_pipeline.md for setup. All five keys are required for end-to-end Sigma->PQ deploys.",
+  "S1_CONSOLE_URL":       "https://<region>-<tenant>.example",
+  "S1_CONSOLE_API_TOKEN": "<S1 Mgmt API token: Settings -> Users -> Service Users>",
+  "SDL_XDR_URL":          "https://xdr.<region>.example",
+  "SDL_LOG_READ_KEY":     "<SDL Log Read scope key: Settings -> Integrations -> Data Lake API Keys>",
+  "SDL_CONFIG_READ_KEY":  "<SDL Configuration Read scope key (only needed for parser sync)>"
+}
