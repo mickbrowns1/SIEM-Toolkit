@@ -5,6 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Parallax</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      body   { background: white !important; overflow: visible !important; display: block !important; }
+      aside, .no-print { display: none !important; }
+      main   { overflow: visible !important; flex: none !important; width: 100% !important; }
+      .poc-page { max-width: none !important; }
+      .shadow-sm { box-shadow: none !important; }
+      [contenteditable] { outline: none !important; }
+      textarea { border: none !important; resize: none !important; }
+      input[type="date"] { border: none !important; }
+    }
+  </style>
 </head>
 <body class="bg-gray-100 text-gray-900 h-screen flex overflow-hidden font-sans">
 
@@ -40,6 +52,10 @@
         Query
       </a>
       <a href="#/threat" data-page="threat" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm cursor-pointer">Threat Coverage</a>
+      <a href="#/poc" data-page="poc" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        POC Lifecycle
+      </a>
     </nav>
     <div class="p-3 border-t border-gray-200">
       <a href="#/settings" data-page="settings" class="nav-link flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
@@ -83,6 +99,112 @@ function setBtn(id, loading, label) {
   if (!b) return
   b.disabled = loading
   b.textContent = loading ? 'Loading…' : label
+}
+
+// ── Sankey diagram (SVG, no external deps) ────────────────────────────────
+// flows = [{source, target, value}]
+function sankeyChart(flows, W = 1100, H = 560) {
+  if (!flows?.length) return '<p class="text-gray-500 text-sm">No data in this period.</p>'
+
+  // Aggregate totals per source / target
+  const srcTotals = {}, tgtTotals = {}
+  for (const { source, target, value } of flows) {
+    srcTotals[source] = (srcTotals[source] || 0) + value
+    tgtTotals[target] = (tgtTotals[target] || 0) + value
+  }
+
+  // Top 10 sources, top 10 event types
+  const sources = Object.entries(srcTotals).sort((a,b) => b[1]-a[1]).slice(0,10).map(([name, val]) => ({ name, val }))
+  const targets = Object.entries(tgtTotals).sort((a,b) => b[1]-a[1]).slice(0,10).map(([name, val]) => ({ name, val }))
+  const srcSet  = new Set(sources.map(n => n.name))
+  const tgtSet  = new Set(targets.map(n => n.name))
+
+  const filtered = flows.filter(f => srcSet.has(f.source) && tgtSet.has(f.target))
+
+  // Layout
+  const PAD   = 6          // gap between nodes (px)
+  const NW    = 14         // node bar width
+  const LX    = 210        // right edge of left (source) nodes
+  const RX    = W - 210    // left  edge of right (target) nodes
+
+  const totalSrc = sources.reduce((s, n) => s + n.val, 0)
+  const totalTgt = targets.reduce((s, n) => s + n.val, 0)
+
+  // ── Sqrt-scaled node heights so dominant sources don't swamp small ones ──
+  // Each node gets: 30% equal share + 70% proportional to sqrt(value)
+  function scaleHeights(nodes, total, usable) {
+    const sqrtVals = nodes.map(n => Math.sqrt(n.val))
+    const sqrtSum  = sqrtVals.reduce((s, v) => s + v, 0)
+    const equalH   = usable / nodes.length
+    nodes.forEach((n, i) => {
+      n.h = Math.max(28, 0.3 * equalH + 0.7 * (sqrtVals[i] / sqrtSum) * usable)
+    })
+    // Re-normalise so they fit exactly
+    const totalH = nodes.reduce((s, n) => s + n.h, 0)
+    const scale  = usable / totalH
+    nodes.forEach(n => n.h = Math.floor(n.h * scale))
+  }
+
+  // Position source nodes (left column)
+  const srcUsable = H - PAD * (sources.length - 1)
+  scaleHeights(sources, totalSrc, srcUsable)
+  let y = 0
+  for (const n of sources) { n.y = y; n.x = LX - NW; y += n.h + PAD }
+
+  // Position target nodes (right column)
+  const tgtUsable = H - PAD * (targets.length - 1)
+  scaleHeights(targets, totalTgt, tgtUsable)
+  y = 0
+  for (const n of targets) { n.y = y; n.x = RX; y += n.h + PAD }
+
+  const srcIdx = Object.fromEntries(sources.map((n, i) => [n.name, i]))
+  const tgtIdx = Object.fromEntries(targets.map((n, i) => [n.name, i]))
+
+  filtered.sort((a, b) => srcIdx[a.source] - srcIdx[b.source] || tgtIdx[a.target] - tgtIdx[b.target])
+
+  const srcOff = sources.map(() => 0)
+  const tgtOff = targets.map(() => 0)
+
+  const COLORS = ['#7c3aed','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#ec4899']
+
+  // Paths
+  let paths = ''
+  for (const { source, target, value } of filtered) {
+    const si = srcIdx[source], ti = tgtIdx[target]
+    if (si == null || ti == null) continue
+    const sn = sources[si], tn = targets[ti]
+    const lh = Math.max(1, (value / totalSrc) * srcUsable)
+    const x0 = sn.x + NW, y0 = sn.y + srcOff[si]
+    const x1 = tn.x,       y1 = tn.y + tgtOff[ti]
+    const mx = (x0 + x1) / 2
+    srcOff[si] += lh;  tgtOff[ti] += lh
+    const col = COLORS[si % COLORS.length]
+    paths += `<path d="M${x0},${y0} C${mx},${y0} ${mx},${y1} ${x1},${y1} L${x1},${y1+lh} C${mx},${y1+lh} ${mx},${y0+lh} ${x0},${y0+lh} Z" fill="${col}" opacity="0.28"/>`
+  }
+
+  // Nodes + labels
+  const fmt = v => v >= 1e6 ? `${(v/1e6).toFixed(1)}M` : v >= 1e3 ? `${Math.round(v/1e3)}K` : v
+  const trunc = (s, n) => s.length > n ? s.slice(0, n) + '…' : s
+
+  let nodes = ''
+  sources.forEach((n, i) => {
+    const col = COLORS[i % COLORS.length]
+    nodes += `<rect x="${n.x}" y="${n.y}" width="${NW}" height="${n.h}" rx="2" fill="${col}"/>`
+    nodes += `<text x="${n.x - 6}" y="${n.y + Math.min(n.h/2, n.h - 2)}" text-anchor="end" dominant-baseline="middle" font-size="11" fill="#1f2937" font-family="system-ui,sans-serif">${esc(trunc(n.name, 24))}</text>`
+    if (n.h >= 22) nodes += `<text x="${n.x - 6}" y="${n.y + Math.min(n.h/2 + 13, n.h - 2)}" text-anchor="end" dominant-baseline="middle" font-size="9" fill="#9ca3af" font-family="system-ui,sans-serif">${fmt(n.val)}</text>`
+  })
+  targets.forEach(n => {
+    const label = n.name || '(unlabelled)'
+    nodes += `<rect x="${n.x}" y="${n.y}" width="${NW}" height="${n.h}" rx="2" fill="#94a3b8"/>`
+    nodes += `<text x="${n.x + NW + 6}" y="${n.y + Math.min(n.h/2, n.h - 2)}" text-anchor="start" dominant-baseline="middle" font-size="11" fill="#1f2937" font-family="system-ui,sans-serif">${esc(trunc(label, 20))}</text>`
+  })
+
+  // Column headers
+  const hdrs = `
+    <text x="${LX - NW/2}" y="-10" text-anchor="middle" font-size="9" fill="#9ca3af" font-weight="700" letter-spacing="0.08em" font-family="system-ui,sans-serif">SOURCES</text>
+    <text x="${RX + NW/2}" y="-10" text-anchor="middle" font-size="9" fill="#9ca3af" font-weight="700" letter-spacing="0.08em" font-family="system-ui,sans-serif">EVENT TYPES</text>`
+
+  return `<svg viewBox="0 -22 ${W} ${H + 26}" class="w-full" style="height:${H + 26}px">${hdrs}${paths}${nodes}</svg>`
 }
 
 // ── Simple SVG bar chart ───────────────────────────────────────────────────
@@ -978,7 +1100,7 @@ function renderIngest() {
     {label:'1h', onclick:"igSetHours(1)", id:'ig-h1'},
     ...([3,5,7].map(d => ({label:`${d}d`, onclick:`igSetDays(${d})`, id:`ig-d${d}`})))
   ]
-  set(`<div class="p-8 max-w-6xl">
+  set(`<div class="p-8 max-w-full">
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-xl font-extrabold text-gray-900 tracking-tight">Ingest Dashboard</h1>
@@ -990,12 +1112,12 @@ function renderIngest() {
       </div>
     </div>
     <div id="ig-err"></div>
-    <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
-      <div class="flex items-baseline gap-2 mb-4">
-        <h2 class="text-sm font-semibold text-gray-900" id="ig-chart-title">Daily Event Volume</h2>
-        <span class="text-xs text-gray-500" id="ig-chart-sub">events ingested per day</span>
+    <div class="bg-white border border-gray-200 rounded-xl p-6 mb-5 shadow-sm">
+      <div class="flex items-baseline gap-2 mb-5">
+        <h2 class="text-sm font-semibold text-gray-900" id="ig-chart-title">Source → Event Type</h2>
+        <span class="text-xs text-gray-500" id="ig-chart-sub">flow · last 1h</span>
       </div>
-      <div id="ig-chart"><p class="text-gray-500 text-sm">Loading…</p></div>
+      <div id="ig-chart" class="overflow-x-auto"><p class="text-gray-500 text-sm">Loading…</p></div>
     </div>
     <div class="bg-white border border-gray-200 rounded-xl p-5 mb-5 shadow-sm">
       <h2 class="text-sm font-semibold text-gray-900 mb-4">Top Sources</h2>
@@ -1060,40 +1182,32 @@ async function igLoad() {
   document.getElementById('ig-chart').innerHTML = spinner
   document.getElementById('ig-sources').innerHTML = spinner
 
-  const sourcesUrl = igHours
-    ? `/api/ingest/top-sources?hours=${igHours}`
-    : `/api/ingest/top-sources?days=${igDays}`
+  const sourcesUrl   = igHours ? `/api/ingest/top-sources?hours=${igHours}` : `/api/ingest/top-sources?days=${igDays}`
+  const sankeyUrl    = igHours ? `/api/ingest/by-event-type?hours=${igHours}` : `/api/ingest/by-event-type?days=${igDays}`
 
-  const [dailyResult, sourcesResult] = await Promise.allSettled([
-    igHours ? Promise.resolve(null) : apiGet(`/api/ingest/daily-volume?days=${igDays}`),
-    apiGet(sourcesUrl)
+  const [sankeyResult, sourcesResult] = await Promise.allSettled([
+    apiGet(sankeyUrl),
+    apiGet(sourcesUrl),
   ])
 
-  // Update chart title based on mode
+  // Update chart title
   const titleEl = document.getElementById('ig-chart-title')
   const subEl   = document.getElementById('ig-chart-sub')
-  if (titleEl) titleEl.textContent = igHours ? 'Events by Source (Last 1h)' : 'Daily Event Volume'
-  if (subEl)   subEl.textContent   = igHours ? 'top sources · last hour'    : 'events ingested per day'
+  if (titleEl) titleEl.textContent = 'Source → Event Type'
+  if (subEl)   subEl.textContent   = igHours ? `flow · last ${igHours}h` : `flow · last ${igDays}d`
 
-  // Volume chart
-  if (igHours) {
-    // For 1h mode, render top-sources data as a by-source bar chart
-    if (sourcesResult.status === 'fulfilled') {
-      const data = sourcesResult.value?.data ?? []
-      const chartRows = data.slice(0, 12).map(r => ({
-        label: r['dataSource.name'] || r.name || 'unknown',
-        events: r.events || 0
-      }))
-      document.getElementById('ig-chart').innerHTML = chartRows.length
-        ? barChart(chartRows, 'label', 'events')
-        : `<p class="text-gray-500 text-sm">No data in this period.</p>`
-    } else {
-      document.getElementById('ig-chart').innerHTML = `<p class="text-red-400 text-sm">${esc(sourcesResult.reason?.message ?? 'Error')}</p>`
-    }
-  } else if (dailyResult.status === 'fulfilled') {
-    document.getElementById('ig-chart').innerHTML = barChart(dailyResult.value, 'date', 'events')
+  // Sankey chart — exclude native S1 platform sources (they're not 3rd-party log sources)
+  const _S1_NATIVE = new Set(['SentinelOne','asset','alert','vulnerability','ActivityFeed','indicator','misconfiguration','SentinelOne Ranger AD'])
+  if (sankeyResult.status === 'fulfilled') {
+    const rows  = sankeyResult.value?.data ?? []
+    const flows = rows.map(r => ({
+      source: r['dataSource.name'] || '(unlabelled)',
+      target: r['event.type']      || '(none)',
+      value:  r.events             || 0,
+    })).filter(f => f.value > 0 && !_S1_NATIVE.has(f.source))
+    document.getElementById('ig-chart').innerHTML = sankeyChart(flows)
   } else {
-    document.getElementById('ig-chart').innerHTML = `<p class="text-red-400 text-sm">${esc(dailyResult.reason?.message ?? 'Error')}</p>`
+    document.getElementById('ig-chart').innerHTML = `<p class="text-red-500 text-sm">${esc(sankeyResult.reason?.message ?? 'Error loading flow data')}</p>`
   }
 
   // Top sources table
@@ -2528,6 +2642,520 @@ function toggleDepMapProduct(uid) {
   if (chev) chev.style.transform = hidden ? '' : 'rotate(180deg)'
 }
 
+// ── POC Management Lifecycle ──────────────────────────────────────────────
+
+const POC_STORAGE_KEY = 'parallax_poc_v1'
+
+const POC_STATUS_CYCLE = ['', 'In Progress', 'Complete', 'Blocked']
+const POC_STATUS_STYLE = {
+  '':            'bg-gray-100 text-gray-500 border-gray-200',
+  'In Progress': 'bg-blue-50 text-blue-700 border-blue-200',
+  'Complete':    'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Blocked':     'bg-red-50 text-red-700 border-red-200',
+}
+
+function pocStatusBadge(status) {
+  const s = status || ''
+  const cls = POC_STATUS_STYLE[s] || POC_STATUS_STYLE['']
+  return `<span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer select-none ${cls}"
+    onclick="pocCycleStatus(this)" data-poc-status="${esc(s)}">${esc(s || 'Not Started')}</span>`
+}
+
+function pocCycleStatus(el) {
+  const cur = el.dataset.pocStatus || ''
+  const next = POC_STATUS_CYCLE[(POC_STATUS_CYCLE.indexOf(cur) + 1) % POC_STATUS_CYCLE.length]
+  el.dataset.pocStatus = next
+  const cls = POC_STATUS_STYLE[next] || POC_STATUS_STYLE['']
+  el.className = `inline-flex px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer select-none ${cls}`
+  el.textContent = next || 'Not Started'
+}
+
+const POC_PHASE_STYLES = [
+  { border: 'border-purple-200', bg: 'bg-purple-50', title: 'text-purple-800', desc: 'text-purple-600' },
+  { border: 'border-blue-200',   bg: 'bg-blue-50',   title: 'text-blue-800',   desc: 'text-blue-600' },
+  { border: 'border-indigo-200', bg: 'bg-indigo-50', title: 'text-indigo-800', desc: 'text-indigo-600' },
+  { border: 'border-violet-200', bg: 'bg-violet-50', title: 'text-violet-800', desc: 'text-violet-600' },
+  { border: 'border-fuchsia-200',bg: 'bg-fuchsia-50',title: 'text-fuchsia-800',desc: 'text-fuchsia-600' },
+]
+
+const POC_DEFAULT_PHASES = [
+  { name: 'Kickoff',    desc: 'Success Criteria · Architecture',      status: '' },
+  { name: 'Ingest',     desc: 'Data Ingestion · Parse · Serialize',   status: '' },
+  { name: 'Detect',     desc: 'Search · Purple AI · Dashboards',      status: '' },
+  { name: 'Alerts',     desc: 'Detections · Custom Rules',            status: '' },
+  { name: 'Automation', desc: 'Hyper Automation · Response Actions',  status: '' },
+]
+
+const POC_DEFAULT_MILESTONES = [
+  ['', '5/26', 'Discovery Session',          'Identify POC Success Criteria, Key Personnel, Data Sources, Ingestion Methods & Firewall Requirements. Establish key POC dates.', ''],
+  ['', '5/26', 'POC Kick Off Meeting',       'Confirm Success Criteria · Create Data Lake trial account · Enable firewall rules · Begin data ingestion', ''],
+  ['', '5/26', 'Working Session #1',         'O365 · Entra · WEL', ''],
+  ['', '6/2',  'Working Session #2',         'Rsyslog configuration', ''],
+  ['', '6/9',  'Working Session #3',         'Alerts · Dashboards', ''],
+  ['', '6/16', 'Working Session #4',         'Hyper Automation · Testing (if needed)', ''],
+  ['', '6/23', 'POC Wrap Up',               'Presentation of Findings and Success Criteria', ''],
+]
+
+const POC_DEFAULT_SOURCES = [
+  ['', 'WinEvent',  'Windows Domain Controllers', 'Agent',    '1–10 GB/day',  'Success', 'Custom code pushed to addEvents API'],
+  ['', 'Firewall',  'Fortigate, Cisco',           'Syslog',   '2 Fortigate - POC', 'Success', 'Custom code pushed to addEvents API'],
+  ['', 'Entra',     'Microsoft Azure',            'API-based','Several GB',   '',        'SentinelOne Marketplace; Microsoft auth requirements'],
+  ['', 'IBM Verify','',                           'API-based','Several GB',   '',        'API monitor'],
+]
+
+const POC_DEFAULT_CRITERIA = [
+  ['', 'Data Retention (180 days)',                          '',                 'Can we retain their data for 180 days?'],
+  ['', 'Escalation of privileges alerts across sources',     'Multiple sources', 'Can we detect privilege escalation attempts'],
+  ['', 'Improbable traveler velocity / country correlation', 'Identity',         ''],
+  ['', 'Failed login – brute force correlation',             'WEL',              ''],
+  ['', 'Dashboard monitoring log sources',                   'Log Volume Meta Log',''],
+  ['', 'Alerts on anomalous log volume spikes and drops',    'Log Volume Meta Log',''],
+  ['', 'Remote access dashboard',                            'RDP',              ''],
+  ['', 'Disable user account / quarantine',                  'WEL',              ''],
+  ['', 'Reliable data ingestion',                            'SIEM/DPM',         ''],
+  ['', 'Data accessibility & searchability',                 'SIEM',             ''],
+  ['', '20% false positive rate target',                     'UAM',              ''],
+]
+
+const POC_DEFAULT_ACTIONS = [
+  ['', 'Send Rsyslog configs',                              'Joel',      ''],
+  ['', 'Setup rsyslog configs',                             'Michealla', ''],
+  ['', 'Determine EDR agent approach and install',          'Michealla', ''],
+  ['', 'Send WEL tuning configs (PO)',                      'Joel',      ''],
+  ['', 'Apply PO',                                          'Michealla', ''],
+  ['', 'Setup O365 Marketplace',                            'Michealla', ''],
+  ['', 'Setup Entra Marketplace',                           'Michealla', ''],
+  ['', 'Setup alerts',                                      'Joel',      ''],
+  ['', 'Setup Hyper Automation',                            'Joel',      ''],
+  ['', 'Setup dashboards',                                  'Joel',      ''],
+]
+
+// Row renderers ─────────────────────────────────────────────────────────────
+
+function pocMilestoneRow(r = []) {
+  const [status='',date='',milestone='',description='',attendees=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm w-20 align-top" contenteditable="true">${esc(date)}</td>
+    <td class="py-2 px-3 text-sm w-44 font-medium align-top" contenteditable="true">${esc(milestone)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(description)}</td>
+    <td class="py-2 px-3 text-sm w-40 align-top" contenteditable="true">${esc(attendees)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocSourceRow(r = []) {
+  const [status='',name='',source='',type='',volume='',ing_status='',notes=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(name)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(source)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(type)}</td>
+    <td class="py-2 px-3 text-sm w-32 align-top" contenteditable="true">${esc(volume)}</td>
+    <td class="py-2 px-3 text-sm w-32 align-top" contenteditable="true">${esc(ing_status)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(notes)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocCriteriaRow(r = []) {
+  const [status='',criteria='',source='',details=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(criteria)}</td>
+    <td class="py-2 px-3 text-sm w-44 align-top" contenteditable="true">${esc(source)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(details)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocActionRow(r = []) {
+  const [status='',task='',owner='',details=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(task)}</td>
+    <td class="py-2 px-3 text-sm w-36 align-top" contenteditable="true">${esc(owner)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(details)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocTable(tbodyId, headers, defaultRows, rowFn, addLabel) {
+  const hCells = headers.map(h =>
+    `<th class="py-2.5 px-3 font-medium text-xs uppercase tracking-wide text-gray-500 text-left">${esc(h)}</th>`
+  ).join('') + `<th class="no-print w-6"></th>`
+  const bodyRows = defaultRows.map(r => rowFn(r)).join('')
+  const type = tbodyId.replace('poc-','').replace('-body','')
+  return `
+    <div class="overflow-x-auto rounded-xl border border-gray-200">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200"><tr>${hCells}</tr></thead>
+        <tbody id="${tbodyId}">${bodyRows}</tbody>
+      </table>
+    </div>
+    <button onclick="pocAddRow('${type}','${tbodyId}')"
+      class="no-print mt-2.5 text-sm text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors">
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+      </svg>
+      ${esc(addLabel)}
+    </button>`
+}
+
+function pocAddRow(type, tbodyId) {
+  const tbody = document.getElementById(tbodyId)
+  if (!tbody) return
+  const fns = { milestones: pocMilestoneRow, sources: pocSourceRow, criteria: pocCriteriaRow, actions: pocActionRow }
+  const fn = fns[type]; if (!fn) return
+  const wrapper = document.createElement('tbody')
+  wrapper.innerHTML = fn([])
+  const newRow = wrapper.querySelector('tr')
+  if (newRow) tbody.appendChild(newRow)
+}
+
+// Serialize / deserialize ────────────────────────────────────────────────────
+
+function pocTableCollect(tbodyId, colCount) {
+  const tbody = document.getElementById(tbodyId)
+  if (!tbody) return []
+  return Array.from(tbody.rows).map(row =>
+    Array.from(row.cells).slice(0, colCount).map(cell => {
+      const sp = cell.querySelector('[data-poc-status]')
+      return sp ? sp.dataset.pocStatus || '' : cell.textContent.trim()
+    })
+  )
+}
+
+function pocCollect() {
+  const get = id => {
+    const el = document.getElementById(id)
+    if (!el) return ''
+    return (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ? el.value : el.textContent.trim()
+  }
+  const phaseSpans = document.querySelectorAll('.poc-phase [data-poc-status]')
+  return {
+    customer:       get('poc-customer'),
+    engagement:     get('poc-engagement'),
+    period_start:   get('poc-period-start'),
+    period_end:     get('poc-period-end'),
+    overview_status: (() => { const el = document.querySelector('#poc-overview-status [data-poc-status]'); return el ? el.dataset.pocStatus || '' : '' })(),
+    s1_team:        get('poc-s1-team'),
+    cust_team:      get('poc-cust-team'),
+    phase_statuses: Array.from(phaseSpans).map(sp => sp.dataset.pocStatus || ''),
+    milestones:     pocTableCollect('poc-milestones-body', 5),
+    data_sources:   pocTableCollect('poc-sources-body', 7),
+    success_criteria: pocTableCollect('poc-criteria-body', 4),
+    action_items:   pocTableCollect('poc-actions-body', 4),
+    health_notes:   get('poc-health-notes'),
+  }
+}
+
+function pocApplyData(d) {
+  const set = (id, val) => {
+    const el = document.getElementById(id)
+    if (!el) return
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = val || ''
+    else el.textContent = val || ''
+  }
+  set('poc-customer',     d.customer)
+  set('poc-engagement',   d.engagement)
+  set('poc-period-start', d.period_start)
+  set('poc-period-end',   d.period_end)
+  // Overview status
+  const ovs = document.querySelector('#poc-overview-status [data-poc-status]')
+  if (ovs && d.overview_status !== undefined) {
+    const s = d.overview_status || ''
+    ovs.dataset.pocStatus = s
+    ovs.className = `inline-flex px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer select-none ${POC_STATUS_STYLE[s] || POC_STATUS_STYLE['']}`
+    ovs.textContent = s || 'Not Started'
+  }
+  // Team
+  set('poc-s1-team',   d.s1_team)
+  set('poc-cust-team', d.cust_team)
+  // Phase statuses
+  if (d.phase_statuses) {
+    const phaseSpans = document.querySelectorAll('.poc-phase [data-poc-status]')
+    d.phase_statuses.forEach((s, i) => {
+      const sp = phaseSpans[i]
+      if (!sp) return
+      sp.dataset.pocStatus = s || ''
+      sp.className = `inline-flex px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer select-none ${POC_STATUS_STYLE[s] || POC_STATUS_STYLE['']}`
+      sp.textContent = s || 'Not Started'
+    })
+  }
+  // Tables
+  const restore = (tbodyId, rows, fn) => {
+    const tb = document.getElementById(tbodyId)
+    if (tb && rows) tb.innerHTML = rows.map(fn).join('')
+  }
+  restore('poc-milestones-body', d.milestones,       pocMilestoneRow)
+  restore('poc-sources-body',    d.data_sources,     pocSourceRow)
+  restore('poc-criteria-body',   d.success_criteria, pocCriteriaRow)
+  restore('poc-actions-body',    d.action_items,     pocActionRow)
+  // Health notes
+  set('poc-health-notes', d.health_notes)
+}
+
+function pocSave() {
+  try {
+    localStorage.setItem(POC_STORAGE_KEY, JSON.stringify(pocCollect()))
+    pocToast('Saved ✓')
+  } catch(e) { pocToast('Save failed', 'red') }
+}
+
+function pocLoadTemplate() {
+  if (!confirm('Load template? This will replace all current content with defaults.')) return
+  pocApplyData({
+    customer: 'Customer Name', engagement: 'AI-SIEM Proof of Concept',
+    period_start: '', period_end: '', overview_status: '', s1_team: 'Joel Mora\nJeff Cohn\nMichael Starks',
+    cust_team: 'Business Owners:\n  Sreenu Sampati\n\nProject Team:\n  Michealla Lindsey\n\nTechnical Team:\n  ',
+    phase_statuses: ['','','','',''],
+    milestones: POC_DEFAULT_MILESTONES, data_sources: POC_DEFAULT_SOURCES,
+    success_criteria: POC_DEFAULT_CRITERIA, action_items: POC_DEFAULT_ACTIONS, health_notes: '',
+  })
+}
+
+function pocToast(msg, color = 'emerald') {
+  const el = document.createElement('div')
+  el.className = `fixed bottom-6 right-6 z-50 px-4 py-2.5 rounded-lg text-sm font-medium text-white shadow-lg bg-${color}-600 transition-opacity duration-300`
+  el.textContent = msg
+  document.body.appendChild(el)
+  setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 300) }, 2500)
+}
+
+async function pocLoadHealth() {
+  const el = document.getElementById('poc-health-data')
+  if (!el) return
+  try {
+    const [healthRes, firingRes, sourcesRes] = await Promise.allSettled([
+      apiGet('/api/coverage/health'),
+      apiGet('/api/coverage/rule-firing-cache'),
+      apiGet('/api/ingest/top-sources?days=7'),
+    ])
+    const h = healthRes.status === 'fulfilled' ? healthRes.value : null
+    const f = firingRes.status === 'fulfilled'  ? firingRes.value  : null
+    const s = sourcesRes.status === 'fulfilled' ? sourcesRes.value : null
+
+    const score         = h ? Math.round(h.score ?? 0) : '—'
+    const parsersLoaded = h ? (h.parsers_loaded ?? '—') : '—'
+    const activeSources = h ? (h.active_sources ?? '—') : '—'
+    const firedRules    = f?.summary?.fired_in_period ?? '—'
+    const totalRules    = f?.summary?.rules_monitored  ?? '—'
+    const periodDays    = f?.summary?.period_days ?? 30
+    const scoreColor    = typeof score === 'number' ? (score >= 80 ? 'text-emerald-500' : score >= 50 ? 'text-amber-500' : 'text-red-400') : 'text-gray-500'
+
+    const topSources = (s?.data || []).slice(0, 5)
+    const maxEvents  = topSources[0]?.events || 1
+    const topSrcsHtml = topSources.length ? `
+      <div class="mt-5 pt-4 border-t border-gray-100">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Top Data Sources (7d)</div>
+        <div class="space-y-2">
+          ${topSources.map(src => {
+            const name = src['dataSource.name'] || src.name || 'Unknown'
+            const pct  = Math.round((src.events / maxEvents) * 100)
+            return `<div class="flex items-center gap-3">
+              <span class="text-xs text-gray-700 w-48 truncate" title="${esc(name)}">${esc(name)}</span>
+              <div class="flex-1 bg-gray-100 rounded-full h-1.5">
+                <div class="bg-purple-500 h-1.5 rounded-full" style="width:${pct}%"></div>
+              </div>
+              <span class="text-xs text-gray-500 tabular-nums w-24 text-right">${(src.events||0).toLocaleString()} events</span>
+            </div>`
+          }).join('')}
+        </div>
+      </div>` : ''
+
+    el.innerHTML = `
+      <div class="grid grid-cols-4 gap-3">
+        ${statCard('Coverage Score', (typeof score === 'number' ? score + '%' : score), scoreColor)}
+        ${statCard('Parsers Loaded', parsersLoaded, 'text-gray-900')}
+        ${statCard('Active Sources', activeSources, 'text-gray-900')}
+        ${statCard('Rules Fired (' + periodDays + 'd)', firedRules + ' / ' + totalRules, 'text-gray-900')}
+      </div>
+      ${topSrcsHtml}`
+  } catch(e) {
+    el.innerHTML = `<p class="text-sm text-red-400">${esc(e.message)}</p>`
+  }
+}
+
+function renderPOC() {
+  const phasesHtml = POC_DEFAULT_PHASES.map((ph, i) => {
+    const st = POC_PHASE_STYLES[i % POC_PHASE_STYLES.length]
+    const arrow = i < POC_DEFAULT_PHASES.length - 1
+      ? `<div class="self-center text-gray-300 text-2xl font-light shrink-0">›</div>` : ''
+    return `<div class="poc-phase flex-1 min-w-0">
+      <div class="rounded-xl border-2 ${st.border} ${st.bg} p-3 h-full flex flex-col items-center justify-between gap-2 text-center">
+        <div>
+          <div class="poc-phase-name text-sm font-bold ${st.title}" contenteditable="true">${esc(ph.name)}</div>
+          <div class="poc-phase-desc text-xs ${st.desc} mt-1 leading-snug" contenteditable="true">${esc(ph.desc)}</div>
+        </div>
+        <div>${pocStatusBadge(ph.status)}</div>
+      </div>
+    </div>${arrow}`
+  }).join('')
+
+  set(`<div class="p-6 max-w-6xl mx-auto space-y-5 poc-page">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-900">POC Engagement Report</h1>
+        <p class="text-sm text-gray-500 mt-0.5">SentinelOne AI-SIEM · Singularity Data Lake</p>
+      </div>
+      <div class="flex gap-2 shrink-0 no-print">
+        <button onclick="pocLoadTemplate()"
+          class="px-3 py-1.5 rounded-lg text-sm border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+          Load Template
+        </button>
+        <button onclick="pocSave()"
+          class="px-3 py-1.5 rounded-lg text-sm border border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors">
+          Save
+        </button>
+        <button onclick="window.print()"
+          class="px-4 py-1.5 rounded-lg text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+          </svg>
+          Export PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- Engagement Overview -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5" id="poc-overview">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-semibold text-gray-900">Engagement Overview</h2>
+        <div id="poc-overview-status">${pocStatusBadge('')}</div>
+      </div>
+      <div class="grid grid-cols-3 gap-5">
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Customer</div>
+          <div id="poc-customer" contenteditable="true"
+            class="text-sm font-semibold text-gray-900 border border-dashed border-transparent hover:border-gray-300 rounded px-1.5 py-1 cursor-text outline-none min-h-[1.75rem]">Customer Name</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Engagement Type</div>
+          <div id="poc-engagement" contenteditable="true"
+            class="text-sm text-gray-900 border border-dashed border-transparent hover:border-gray-300 rounded px-1.5 py-1 cursor-text outline-none min-h-[1.75rem]">AI-SIEM Proof of Concept</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">POC Period</div>
+          <div class="flex items-center gap-2">
+            <input id="poc-period-start" type="date" class="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            <span class="text-gray-400 text-xs">to</span>
+            <input id="poc-period-end" type="date" class="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Team Members -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">Team Members</h2>
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">SentinelOne Team</div>
+          <textarea id="poc-s1-team" rows="5" placeholder="Names, one per line…"
+            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-900 resize-y focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">Joel Mora
+Jeff Cohn
+Michael Starks</textarea>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Customer Team</div>
+          <textarea id="poc-cust-team" rows="5" placeholder="Business owners, technical contacts…"
+            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-900 resize-y focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">Business Owners:
+  Sreenu Sampati
+
+Project Team:
+  Michealla Lindsey
+
+Technical Team:
+  </textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- POC Phases -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">POC Phases</h2>
+      <div class="flex items-stretch gap-3">${phasesHtml}</div>
+      <p class="text-xs text-gray-400 mt-3 no-print">Click a status badge to cycle: Not Started → In Progress → Complete → Blocked. Phase names and descriptions are editable.</p>
+    </div>
+
+    <!-- Activity Tracker -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">Activity Tracker</h2>
+      ${pocTable('poc-milestones-body',
+        ['Status','Date','Milestone','Description','Attendees'],
+        POC_DEFAULT_MILESTONES, pocMilestoneRow, 'Add Milestone')}
+    </div>
+
+    <!-- Data Sources -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">Data Sources</h2>
+      ${pocTable('poc-sources-body',
+        ['Status','Source Name','Origin / System','Type','Volume (GB/day)','Ingestion Status','Notes'],
+        POC_DEFAULT_SOURCES, pocSourceRow, 'Add Data Source')}
+    </div>
+
+    <!-- Success Criteria -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">Success Criteria</h2>
+      ${pocTable('poc-criteria-body',
+        ['Status','Success Criteria','Source / System','Details'],
+        POC_DEFAULT_CRITERIA, pocCriteriaRow, 'Add Criteria')}
+    </div>
+
+    <!-- Action Items -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">Action Items</h2>
+      ${pocTable('poc-actions-body',
+        ['Status','Task / Action','Owner','Details / Notes'],
+        POC_DEFAULT_ACTIONS, pocActionRow, 'Add Action Item')}
+    </div>
+
+    <!-- Environment Health Snapshot -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="text-base font-semibold text-gray-900">Environment Health Snapshot</h2>
+        <span class="text-xs text-gray-400 no-print">Live data from active console</span>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">Data pulled from the active SentinelOne AI-SIEM console at time of export.</p>
+      <div id="poc-health-data">
+        <div class="text-center py-8 text-gray-400 text-sm animate-pulse">Loading health data…</div>
+      </div>
+      <div class="mt-5">
+        <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">Analyst Notes &amp; Findings</div>
+        <textarea id="poc-health-notes" rows="6"
+          placeholder="Add observations, key findings, recommendations, and next steps for this customer engagement…"
+          class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-900 resize-y focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"></textarea>
+      </div>
+    </div>
+
+    <!-- Report footer (shows on print) -->
+    <div class="text-xs text-gray-400 text-center py-3 border-t border-gray-200 mt-2">
+      Generated ${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})} &nbsp;·&nbsp; Parallax &nbsp;·&nbsp; SentinelOne AI-SIEM
+    </div>
+
+  </div>`)
+
+  // Restore saved state if available
+  try {
+    const saved = localStorage.getItem(POC_STORAGE_KEY)
+    if (saved) pocApplyData(JSON.parse(saved))
+  } catch(e) { console.warn('POC restore failed:', e) }
+
+  // Load live health metrics
+  pocLoadHealth()
+}
+
 // ── Router ────────────────────────────────────────────────────────────────
 
 function set(html) { document.getElementById('main').innerHTML = html }
@@ -2548,6 +3176,7 @@ function route() {
   else if (h === '#/query')      { updateNav('query');      renderQuery()      }
   else if (h === '#/threat')     { updateNav('threat');     renderThreat()     }
   else if (h === '#/settings')   { updateNav('settings');   renderSettings()   }
+  else if (h === '#/poc')        { updateNav('poc');        renderPOC()        }
   else                           { updateNav('home');       renderHome()       }
 }
 
