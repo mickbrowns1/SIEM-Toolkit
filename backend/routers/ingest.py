@@ -64,25 +64,29 @@ async def get_top_sources(
 
 
 @async_ttl_cache(ttl_seconds=_DASHBOARD_TTL_SECONDS)
-async def _by_event_type_cached(days: int) -> dict:
-    # Same days->hours normalisation as top-sources for tenant stability.
-    from_dt, to_dt = _date_range_hours(days * 24)
-    query = "| group events=count() by dataSource.name, event.type | sort -events | limit 100"
+async def _by_event_type_cached(hours: int) -> dict:
+    from_dt, to_dt = _date_range_hours(hours)
+    query = "| group events=count() by dataSource.name, event.type | sort -events | limit 200"
     result = await s1_client.run_powerquery(query, from_dt, to_dt)
     return {"data": result.get("events", [])}
 
 
 @router.get("/by-event-type")
 async def get_by_event_type(
-    days: int = Query(7, ge=1, le=90),
+    days: int = Query(None, ge=1, le=90),
+    hours: int = Query(None, ge=1, le=720),
     nocache: bool = Query(False),
 ):
-    """Event counts grouped by source and event type."""
+    """Event counts grouped by source and event type — used for Sankey chart."""
+    if hours is None and days is None:
+        days = 3
+    if hours is None:
+        hours = days * 24
     try:
-        cached = await _by_event_type_cached(days, nocache=nocache)
+        cached = await _by_event_type_cached(hours, nocache=nocache)
     except Exception as e:
         raise HTTPException(502, f"PowerQuery error: {e}")
-    return {"period_days": days, "data": cached["data"]}
+    return {"period_hours": hours, "data": cached["data"]}
 
 
 @async_ttl_cache(ttl_seconds=_DASHBOARD_TTL_SECONDS)
