@@ -3070,6 +3070,13 @@ function renderPOC() {
       </div>
     </div>
 
+    <!-- POC Phases -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">POC Phases</h2>
+      <div class="flex items-stretch gap-3">${phasesHtml}</div>
+      <p class="text-xs text-gray-400 mt-3 no-print">Click a status badge to cycle: Not Started → In Progress → Complete → Blocked. Phase names and descriptions are editable.</p>
+    </div>
+
     <!-- Engagement Overview -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5" id="poc-overview">
       <div class="flex items-center justify-between mb-4">
@@ -3165,13 +3172,6 @@ Technical Team:
       ${pocTable('poc-prereqs-body',
         ['Status', 'Prerequisite', 'Details', 'Owner', 'Notes'],
         POC_DEFAULT_PREREQS, pocPrereqRow, 'Add Prerequisite')}
-    </div>
-
-    <!-- POC Phases -->
-    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
-      <h2 class="text-base font-semibold text-gray-900 mb-4">POC Phases</h2>
-      <div class="flex items-stretch gap-3">${phasesHtml}</div>
-      <p class="text-xs text-gray-400 mt-3 no-print">Click a status badge to cycle: Not Started → In Progress → Complete → Blocked. Phase names and descriptions are editable.</p>
     </div>
 
     <!-- Risks & Blockers -->
