@@ -2813,7 +2813,10 @@ function pocTable(tbodyId, headers, defaultRows, rowFn, addLabel) {
 function pocAddRow(type, tbodyId) {
   const tbody = document.getElementById(tbodyId)
   if (!tbody) return
-  const fns = { milestones: pocMilestoneRow, sources: pocSourceRow, criteria: pocCriteriaRow, actions: pocActionRow }
+  const fns = {
+    milestones: pocMilestoneRow, sources: pocSourceRow, criteria: pocCriteriaRow, actions: pocActionRow,
+    prereqs: pocPrereqRow, risks: pocRiskRow, close: pocCloseRow, detections: pocDetectionRow,
+  }
   const fn = fns[type]; if (!fn) return
   const wrapper = document.createElement('tbody')
   wrapper.innerHTML = fn([])
@@ -2828,8 +2831,11 @@ function pocTableCollect(tbodyId, colCount) {
   if (!tbody) return []
   return Array.from(tbody.rows).map(row =>
     Array.from(row.cells).slice(0, colCount).map(cell => {
-      const sp = cell.querySelector('[data-poc-status]')
-      return sp ? sp.dataset.pocStatus || '' : cell.textContent.trim()
+      const statusSp = cell.querySelector('[data-poc-status]')
+      if (statusSp) return statusSp.dataset.pocStatus || ''
+      const sevSp = cell.querySelector('[data-poc-severity]')
+      if (sevSp) return sevSp.dataset.pocSeverity || 'Low'
+      return cell.textContent.trim()
     })
   )
 }
@@ -2850,10 +2856,21 @@ function pocCollect() {
     s1_team:        get('poc-s1-team'),
     cust_team:      get('poc-cust-team'),
     phase_statuses: Array.from(phaseSpans).map(sp => sp.dataset.pocStatus || ''),
+    scope_in:       get('poc-scope-in'),
+    scope_out:      get('poc-scope-out'),
+    prereqs:        pocTableCollect('poc-prereqs-body', 5),
+    risks:          pocTableCollect('poc-risks-body', 6),
     milestones:     pocTableCollect('poc-milestones-body', 5),
     data_sources:   pocTableCollect('poc-sources-body', 7),
     success_criteria: pocTableCollect('poc-criteria-body', 4),
+    detections:     pocTableCollect('poc-detections-body', 6),
     action_items:   pocTableCollect('poc-actions-body', 4),
+    decision_maker: get('poc-decision-maker'),
+    budget_holder:  get('poc-budget-holder'),
+    decision_date:  get('poc-decision-date'),
+    success_threshold: get('poc-success-threshold'),
+    competitive:    get('poc-competitive'),
+    close_steps:    pocTableCollect('poc-close-body', 5),
     health_notes:   get('poc-health-notes'),
   }
 }
@@ -2891,15 +2908,28 @@ function pocApplyData(d) {
       sp.textContent = s || 'Not Started'
     })
   }
+  // Scope textareas
+  set('poc-scope-in',  d.scope_in)
+  set('poc-scope-out', d.scope_out)
+  // Close plan fields
+  set('poc-decision-maker',    d.decision_maker)
+  set('poc-budget-holder',     d.budget_holder)
+  set('poc-decision-date',     d.decision_date)
+  set('poc-success-threshold', d.success_threshold)
+  set('poc-competitive',       d.competitive)
   // Tables
   const restore = (tbodyId, rows, fn) => {
     const tb = document.getElementById(tbodyId)
     if (tb && rows) tb.innerHTML = rows.map(fn).join('')
   }
-  restore('poc-milestones-body', d.milestones,       pocMilestoneRow)
-  restore('poc-sources-body',    d.data_sources,     pocSourceRow)
-  restore('poc-criteria-body',   d.success_criteria, pocCriteriaRow)
-  restore('poc-actions-body',    d.action_items,     pocActionRow)
+  restore('poc-prereqs-body',    d.prereqs,           pocPrereqRow)
+  restore('poc-risks-body',      d.risks,             pocRiskRow)
+  restore('poc-milestones-body', d.milestones,        pocMilestoneRow)
+  restore('poc-sources-body',    d.data_sources,      pocSourceRow)
+  restore('poc-criteria-body',   d.success_criteria,  pocCriteriaRow)
+  restore('poc-detections-body', d.detections,        pocDetectionRow)
+  restore('poc-actions-body',    d.action_items,      pocActionRow)
+  restore('poc-close-body',      d.close_steps,       pocCloseRow)
   // Health notes
   set('poc-health-notes', d.health_notes)
 }
@@ -2915,11 +2945,23 @@ function pocLoadTemplate() {
   if (!confirm('Load template? This will replace all current content with defaults.')) return
   pocApplyData({
     customer: 'Customer Name', engagement: 'AI-SIEM Proof of Concept',
-    period_start: '', period_end: '', overview_status: '', s1_team: 'Joel Mora\nJeff Cohn\nMichael Starks',
+    period_start: '', period_end: '', overview_status: '',
+    s1_team: 'Joel Mora\nJeff Cohn\nMichael Starks',
     cust_team: 'Business Owners:\n  Sreenu Sampati\n\nProject Team:\n  Michealla Lindsey\n\nTechnical Team:\n  ',
+    scope_in: 'Windows Event Log (Domain Controllers)\nFortigate and Cisco firewall syslog\nPrivilege escalation detection\nBrute force / failed login correlation\nRemote access anomaly dashboard\nLog volume anomaly alerting\nUser quarantine response action',
+    scope_out: 'Full production rollout (POC environment only)\nEntra ID / IBM Verify integration (auth requirements pending)\nHyper Automation workflows (Phase 2, pending POC success)\nCustom ML model training\nHistorical data migration',
     phase_statuses: ['','','','',''],
-    milestones: POC_DEFAULT_MILESTONES, data_sources: POC_DEFAULT_SOURCES,
-    success_criteria: POC_DEFAULT_CRITERIA, action_items: POC_DEFAULT_ACTIONS, health_notes: '',
+    prereqs:          POC_DEFAULT_PREREQS,
+    risks:            POC_DEFAULT_RISKS,
+    milestones:       POC_DEFAULT_MILESTONES,
+    data_sources:     POC_DEFAULT_SOURCES,
+    success_criteria: POC_DEFAULT_CRITERIA,
+    detections:       POC_DEFAULT_DETECTIONS,
+    action_items:     POC_DEFAULT_ACTIONS,
+    decision_maker: 'Sreenu Sampati', budget_holder: '', decision_date: '',
+    success_threshold: '8 of 11 success criteria must be met', competitive: 'Incumbent: ',
+    close_steps: POC_DEFAULT_CLOSE_STEPS,
+    health_notes: '',
   })
 }
 
@@ -3056,6 +3098,40 @@ function renderPOC() {
       </div>
     </div>
 
+    <!-- POC Scope -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-1">POC Scope</h2>
+      <p class="text-xs text-gray-500 mb-4">Confirmed at kickoff to set expectations and prevent scope creep.</p>
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 inline-block"></span>
+            <span class="text-xs text-gray-500 font-medium uppercase tracking-wide">In Scope</span>
+          </div>
+          <textarea id="poc-scope-in" rows="8"
+            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-900 resize-y focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">Windows Event Log (Domain Controllers)
+Fortigate and Cisco firewall syslog
+Privilege escalation detection
+Brute force / failed login correlation
+Remote access anomaly dashboard
+Log volume anomaly alerting
+User quarantine response action</textarea>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-400 shrink-0 inline-block"></span>
+            <span class="text-xs text-gray-500 font-medium uppercase tracking-wide">Out of Scope</span>
+          </div>
+          <textarea id="poc-scope-out" rows="8"
+            class="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 text-gray-900 resize-y focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent">Full production rollout (POC environment only)
+Entra ID / IBM Verify integration (auth requirements pending)
+Hyper Automation workflows (Phase 2, pending POC success)
+Custom ML model training
+Historical data migration</textarea>
+        </div>
+      </div>
+    </div>
+
     <!-- Team Members -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
       <h2 class="text-base font-semibold text-gray-900 mb-4">Team Members</h2>
@@ -3082,11 +3158,29 @@ Technical Team:
       </div>
     </div>
 
+    <!-- Technical Prerequisites -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-1">Technical Prerequisites</h2>
+      <p class="text-xs text-gray-500 mb-4">Everything that must be in place before data ingestion can begin. Confirm during the kickoff call.</p>
+      ${pocTable('poc-prereqs-body',
+        ['Status', 'Prerequisite', 'Details', 'Owner', 'Notes'],
+        POC_DEFAULT_PREREQS, pocPrereqRow, 'Add Prerequisite')}
+    </div>
+
     <!-- POC Phases -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
       <h2 class="text-base font-semibold text-gray-900 mb-4">POC Phases</h2>
       <div class="flex items-stretch gap-3">${phasesHtml}</div>
       <p class="text-xs text-gray-400 mt-3 no-print">Click a status badge to cycle: Not Started → In Progress → Complete → Blocked. Phase names and descriptions are editable.</p>
+    </div>
+
+    <!-- Risks & Blockers -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-1">Risks &amp; Blockers</h2>
+      <p class="text-xs text-gray-500 mb-4 no-print">Click <strong>Severity</strong> to cycle Low → Medium → High → Critical. Click <strong>Status</strong> to track resolution progress.</p>
+      ${pocTable('poc-risks-body',
+        ['Severity', 'Risk / Blocker', 'Impact', 'Mitigation', 'Owner', 'Status'],
+        POC_DEFAULT_RISKS, pocRiskRow, 'Add Risk')}
     </div>
 
     <!-- Activity Tracker -->
@@ -3105,6 +3199,24 @@ Technical Team:
         POC_DEFAULT_SOURCES, pocSourceRow, 'Add Data Source')}
     </div>
 
+    <!-- Sizing / Ingest Summary -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="text-base font-semibold text-gray-900">Sizing &amp; Ingest Summary</h2>
+        <div class="flex items-center gap-3 no-print">
+          <label class="text-xs text-gray-500">GB / million events:</label>
+          <input id="poc-gb-ratio" type="number" step="0.1" value="0.5" min="0.1" max="10"
+            class="w-20 text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+          <button onclick="pocLoadSizing()"
+            class="px-3 py-1 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">Refresh</button>
+        </div>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">Live event volumes from the active console, extrapolated to monthly and annual projections.</p>
+      <div id="poc-sizing-data">
+        <div class="text-center py-6 text-gray-400 text-sm animate-pulse">Loading ingest data…</div>
+      </div>
+    </div>
+
     <!-- Success Criteria -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
       <h2 class="text-base font-semibold text-gray-900 mb-4">Success Criteria</h2>
@@ -3113,12 +3225,63 @@ Technical Team:
         POC_DEFAULT_CRITERIA, pocCriteriaRow, 'Add Criteria')}
     </div>
 
+    <!-- Detection Use Case Coverage -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <div class="flex items-center justify-between mb-1">
+        <h2 class="text-base font-semibold text-gray-900">Detection Use Case Coverage</h2>
+        <button onclick="pocLoadDetectionCounts()"
+          class="no-print px-3 py-1 text-sm border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors">
+          Sync Alert Counts
+        </button>
+      </div>
+      <p class="text-xs text-gray-500 mb-4">Map each use case to its deployed detection rule. Type the exact rule name and click <strong class="no-print">Sync Alert Counts</strong> to auto-populate alert counts from the active console.</p>
+      ${pocTable('poc-detections-body',
+        ['Status', 'Use Case', 'MITRE Technique', 'Mapped Detection Rule', 'Alerts Fired', 'Notes'],
+        POC_DEFAULT_DETECTIONS, pocDetectionRow, 'Add Use Case')}
+    </div>
+
     <!-- Action Items -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
       <h2 class="text-base font-semibold text-gray-900 mb-4">Action Items</h2>
       ${pocTable('poc-actions-body',
         ['Status','Task / Action','Owner','Details / Notes'],
         POC_DEFAULT_ACTIONS, pocActionRow, 'Add Action Item')}
+    </div>
+
+    <!-- Close Plan / Decision Criteria -->
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
+      <h2 class="text-base font-semibold text-gray-900 mb-4">Close Plan &amp; Decision Criteria</h2>
+      <div class="grid grid-cols-3 gap-4 mb-5">
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Decision Maker</div>
+          <div id="poc-decision-maker" contenteditable="true"
+            class="text-sm text-gray-900 border border-dashed border-transparent hover:border-gray-300 rounded px-1.5 py-1 cursor-text outline-none min-h-[1.75rem]">Sreenu Sampati</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Budget Holder</div>
+          <div id="poc-budget-holder" contenteditable="true"
+            class="text-sm text-gray-900 border border-dashed border-transparent hover:border-gray-300 rounded px-1.5 py-1 cursor-text outline-none min-h-[1.75rem]"></div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Decision Target Date</div>
+          <input id="poc-decision-date" type="date"
+            class="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+        </div>
+        <div class="col-span-2">
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Success Threshold</div>
+          <div id="poc-success-threshold" contenteditable="true"
+            class="text-sm text-gray-900 border border-dashed border-transparent hover:border-gray-300 rounded px-1.5 py-1 cursor-text outline-none min-h-[1.75rem]">8 of 11 success criteria must be met</div>
+        </div>
+        <div>
+          <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-1">Competitive Context</div>
+          <div id="poc-competitive" contenteditable="true"
+            class="text-sm text-gray-900 border border-dashed border-transparent hover:border-gray-300 rounded px-1.5 py-1 cursor-text outline-none min-h-[1.75rem]">Incumbent: </div>
+        </div>
+      </div>
+      <div class="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Path to Close</div>
+      ${pocTable('poc-close-body',
+        ['Status', 'Step / Milestone', 'Owner', 'Target Date', 'Notes'],
+        POC_DEFAULT_CLOSE_STEPS, pocCloseRow, 'Add Step')}
     </div>
 
     <!-- Environment Health Snapshot -->
@@ -3152,8 +3315,222 @@ Technical Team:
     if (saved) pocApplyData(JSON.parse(saved))
   } catch(e) { console.warn('POC restore failed:', e) }
 
-  // Load live health metrics
+  // Load live health metrics and sizing
   pocLoadHealth()
+  pocLoadSizing()
+}
+
+// ── POC Extended Sections ─────────────────────────────────────────────────
+
+// Severity badge (click-to-cycle: Low → Medium → High → Critical)
+const POC_SEVERITY_CYCLE = ['Low', 'Medium', 'High', 'Critical']
+const POC_SEVERITY_STYLE = {
+  'Low':      'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Medium':   'bg-amber-50 text-amber-700 border-amber-200',
+  'High':     'bg-orange-50 text-orange-700 border-orange-200',
+  'Critical': 'bg-red-50 text-red-700 border-red-200',
+}
+function pocSeverityBadge(sev) {
+  const s = sev || 'Low'
+  const cls = POC_SEVERITY_STYLE[s] || POC_SEVERITY_STYLE['Low']
+  return `<span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer select-none ${cls}"
+    onclick="pocCycleSeverity(this)" data-poc-severity="${esc(s)}">${esc(s)}</span>`
+}
+function pocCycleSeverity(el) {
+  const cur = el.dataset.pocSeverity || 'Low'
+  const next = POC_SEVERITY_CYCLE[(POC_SEVERITY_CYCLE.indexOf(cur) + 1) % POC_SEVERITY_CYCLE.length]
+  el.dataset.pocSeverity = next
+  el.className = `inline-flex px-2 py-0.5 rounded-full text-xs font-medium border cursor-pointer select-none ${POC_SEVERITY_STYLE[next]}`
+  el.textContent = next
+}
+
+// Default data for new sections
+const POC_DEFAULT_PREREQS = [
+  ['', 'Outbound firewall rule to SDL ingest endpoint (HTTPS 443)', 'Allow traffic to SDL endpoint for your region (e.g. xdr.us1.sentinelone.net)', 'Customer IT', ''],
+  ['', 'S1 Management API token provisioned', 'Read token with AI-SIEM and SDL scopes', 'S1 SE', ''],
+  ['', 'SDL Log Read API key', 'Required for querying the data lake (Parallax + PowerQuery)', 'S1 SE', ''],
+  ['', 'SDL Config Read API key', 'Required for parser and rule sync', 'S1 SE', ''],
+  ['', 'Data Lake trial account created and credentials shared', 'SDL account provisioned', 'S1 SE', ''],
+  ['', 'Syslog receiver / rsyslog configured', 'For Fortigate and Cisco syslog forwarding to SDL', 'Customer IT', ''],
+  ['', 'Windows Event Log forwarding (WEC or agent)', 'Domain Controller log forwarding to SDL', 'Customer IT', ''],
+  ['', 'O365 Management Activity API permissions', 'App registration with audit log reader permissions', 'Customer IT', ''],
+  ['', 'Entra ID audit log reader role', 'Azure AD reader for sign-in and audit logs', 'Customer IT', ''],
+  ['', 'EDR agent deployment approved', 'Internal approval to deploy SentinelOne agent on DCs', 'Customer Security', ''],
+  ['', 'Network connectivity verified to SDL endpoint', 'Confirm test events are reaching the data lake', 'S1 SE + Customer IT', ''],
+]
+
+const POC_DEFAULT_RISKS = [
+  ['High',   'Microsoft authentication requirements blocking Entra ingestion',   'Entra ID logs not ingested during POC',               'Resolve OAuth app registration with Customer IT; use WEL as interim identity source', 'Michealla / Joel', ''],
+  ['Medium', 'EDR agent deployment requires internal security approval',          'WEL collection via agent may be delayed',             'Use Windows Event Collector (WEC) as an interim alternative',                        'Michealla',        ''],
+  ['Medium', 'IBM Verify API rate limits and volume unknown',                     'Ingestion reliability and volume estimates uncertain', 'Run a limited test pull before committing to full ingestion',                        'Joel',             ''],
+  ['Low',    'Customer IT availability for firewall change windows',              'Could delay data ingestion start',                    'Identify change window during kickoff; pre-stage rsyslog configs',                  'Joel',             ''],
+]
+
+const POC_DEFAULT_CLOSE_STEPS = [
+  ['', 'POC Wrap Up presentation to business stakeholders',      'Joel Mora',         '6/23', 'Slides, demo, and findings delivered'],
+  ['', 'Deliver written POC summary and success criteria report','Joel Mora',         '6/25', ''],
+  ['', 'Security / vendor risk questionnaire completed',         'Customer IT',       '7/1',  ''],
+  ['', 'Commercial proposal reviewed',                           'Sreenu Sampati',    '7/8',  ''],
+  ['', 'Legal review and MSA negotiation',                       'Legal teams',       '7/15', ''],
+  ['', 'Contract signature',                                     'Business Owner',    '7/22', ''],
+]
+
+const POC_DEFAULT_DETECTIONS = [
+  ['', 'Escalation of privileges across sources',          'TA0004 – Privilege Escalation', '', '', ''],
+  ['', 'Improbable travel / impossible traveler velocity', 'TA0001 – Initial Access',        '', '', ''],
+  ['', 'Failed login brute force correlation',             'T1110 – Brute Force',            '', '', ''],
+  ['', 'Anomalous log volume spike or drop',               'T1562 – Defense Evasion',        '', '', ''],
+  ['', 'Remote access anomaly (RDP)',                      'TA0008 – Lateral Movement',      '', '', ''],
+  ['', 'Disable user account (automated response)',        'Automated Response',             '', '', ''],
+]
+
+// Row renderers for extended tables
+function pocPrereqRow(r = []) {
+  const [status='', prereq='', details='', owner='', notes=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(prereq)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(details)}</td>
+    <td class="py-2 px-3 text-sm w-36 align-top" contenteditable="true">${esc(owner)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(notes)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocRiskRow(r = []) {
+  const [severity='Low', risk='', impact='', mitigation='', owner='', status=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-24">${pocSeverityBadge(severity)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(risk)}</td>
+    <td class="py-2 px-3 text-sm w-44 align-top" contenteditable="true">${esc(impact)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(mitigation)}</td>
+    <td class="py-2 px-3 text-sm w-32 align-top" contenteditable="true">${esc(owner)}</td>
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocCloseRow(r = []) {
+  const [status='', step='', owner='', target_date='', notes=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(step)}</td>
+    <td class="py-2 px-3 text-sm w-44 align-top" contenteditable="true">${esc(owner)}</td>
+    <td class="py-2 px-3 text-sm w-28 align-top" contenteditable="true">${esc(target_date)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(notes)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+function pocDetectionRow(r = []) {
+  const [status='', use_case='', technique='', mapped_rule='', alerts='', notes=''] = r
+  return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
+    <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(use_case)}</td>
+    <td class="py-2 px-3 text-sm w-44 align-top" contenteditable="true">${esc(technique)}</td>
+    <td class="py-2 px-3 text-sm w-52 align-top" contenteditable="true">${esc(mapped_rule)}</td>
+    <td class="py-2 px-3 text-sm w-24 tabular-nums text-right align-top text-gray-400">${esc(alerts)}</td>
+    <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(notes)}</td>
+    <td class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </td>
+  </tr>`
+}
+
+// Sizing / Ingest Summary — pulls from /api/ingest/top-sources
+async function pocLoadSizing() {
+  const el = document.getElementById('poc-sizing-data')
+  if (!el) return
+  const gbRatio = parseFloat(document.getElementById('poc-gb-ratio')?.value) || 0.5
+  el.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm animate-pulse">Loading ingest data…</div>'
+  try {
+    const data = await apiGet('/api/ingest/top-sources?days=7')
+    const sources = data.data || []
+    if (!sources.length) {
+      el.innerHTML = '<p class="text-sm text-gray-400 py-4 text-center">No ingest data available — ensure SDL is connected and data has been ingested.</p>'
+      return
+    }
+    const total        = sources.reduce((s, r) => s + (r.events || 0), 0)
+    const totalGb7d    = total / 1_000_000 * gbRatio
+    const projMonthly  = Math.round(total / 7 * 30)
+    const projMonthGb  = projMonthly / 1_000_000 * gbRatio
+    const projAnnualGb = projMonthGb * 12
+
+    const rows = sources.slice(0, 20).map(src => {
+      const name        = src['dataSource.name'] || src.name || 'Unknown'
+      const ev          = src.events || 0
+      const gb7d        = ev / 1_000_000 * gbRatio
+      const projMoEv    = Math.round(ev / 7 * 30)
+      const projMoGb    = projMoEv / 1_000_000 * gbRatio
+      return `<tr class="border-b border-gray-100 hover:bg-gray-50/50">
+        <td class="py-2 px-3 text-sm font-medium text-gray-900">${esc(name)}</td>
+        <td class="py-2 px-3 text-sm tabular-nums text-right text-gray-700">${ev.toLocaleString()}</td>
+        <td class="py-2 px-3 text-sm tabular-nums text-right text-gray-700">${gb7d.toFixed(3)}</td>
+        <td class="py-2 px-3 text-sm tabular-nums text-right text-gray-700">${projMoEv.toLocaleString()}</td>
+        <td class="py-2 px-3 text-sm tabular-nums text-right text-gray-700">${projMoGb.toFixed(2)}</td>
+      </tr>`
+    }).join('')
+
+    el.innerHTML = `
+      <div class="grid grid-cols-4 gap-3 mb-4">
+        ${statCard('Total Events (7d)', total.toLocaleString(), 'text-gray-900')}
+        ${statCard('Est. GB (7d)', totalGb7d.toFixed(2), 'text-gray-900')}
+        ${statCard('Proj. Monthly Events', projMonthly.toLocaleString(), 'text-gray-900')}
+        ${statCard('Proj. Monthly GB', projMonthGb.toFixed(2), projMonthGb > 500 ? 'text-amber-500' : 'text-gray-900')}
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-gray-200 mb-2">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b border-gray-200"><tr>
+            <th class="py-2.5 px-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Source</th>
+            <th class="py-2.5 px-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Events (7d)</th>
+            <th class="py-2.5 px-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">GB (7d)</th>
+            <th class="py-2.5 px-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Proj. Monthly Events</th>
+            <th class="py-2.5 px-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Proj. Monthly GB</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-semibold"><tr>
+            <td class="py-2.5 px-3 text-sm text-gray-900">Total</td>
+            <td class="py-2.5 px-3 text-sm tabular-nums text-right text-gray-900">${total.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-sm tabular-nums text-right text-gray-900">${totalGb7d.toFixed(3)}</td>
+            <td class="py-2.5 px-3 text-sm tabular-nums text-right text-gray-900">${projMonthly.toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-sm tabular-nums text-right text-gray-900">${projMonthGb.toFixed(2)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <p class="text-xs text-gray-400">Ratio: ${gbRatio} GB / million events &nbsp;·&nbsp; Projected annual: ~${Math.round(projAnnualGb).toLocaleString()} GB</p>`
+  } catch(e) {
+    el.innerHTML = `<p class="text-sm text-red-400">${esc(e.message)}</p>`
+  }
+}
+
+// Detection coverage — sync alert counts from rule firing cache
+let _pocFiringCache = null
+
+async function pocLoadDetectionCounts() {
+  try {
+    const data = await apiGet('/api/coverage/rule-firing-cache')
+    _pocFiringCache = {}
+    for (const r of (data.rules || [])) { _pocFiringCache[r.rule_name] = r.alert_count }
+
+    document.querySelectorAll('#poc-detections-body tr').forEach(row => {
+      const cells = row.cells; if (cells.length < 6) return
+      const ruleName  = cells[3]?.textContent.trim()
+      const alertCell = cells[4]
+      if (!ruleName || !alertCell) return
+      if (_pocFiringCache[ruleName] !== undefined) {
+        const count = _pocFiringCache[ruleName]
+        alertCell.textContent = count.toLocaleString()
+        alertCell.className = `py-2 px-3 text-sm w-24 tabular-nums text-right align-top ${count > 0 ? 'text-emerald-600 font-medium' : 'text-gray-400'}`
+      }
+    })
+    pocToast('Alert counts synced ✓')
+  } catch(e) { pocToast('Sync failed', 'red') }
 }
 
 // ── Router ────────────────────────────────────────────────────────────────
