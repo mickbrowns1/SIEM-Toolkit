@@ -2746,9 +2746,16 @@ function pocMilestoneRow(r = []) {
   </tr>`
 }
 
+let _pocSrcUid = 0
 function pocSourceRow(r = []) {
   const [status='',name='',source='',type='',volume='',ing_status='',notes=''] = r
+  const uid = 'pocsrc_' + (_pocSrcUid++)
   return `<tr class="border-b border-gray-100 hover:bg-gray-50/50 group">
+    <td data-poc-skip class="py-2 pl-3 pr-1 align-top w-6 no-print text-center">
+      <button onclick="pocToggleSourceDetail(this,'${uid}')" class="text-gray-300 hover:text-purple-500 transition-colors" title="Show onboarding pipeline & test logs">
+        <svg class="w-4 h-4 transition-transform" data-poc-chev fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </td>
     <td class="py-2 px-3 text-center align-top w-28">${pocStatusBadge(status)}</td>
     <td class="py-2 px-3 text-sm font-medium align-top" contenteditable="true">${esc(name)}</td>
     <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(source)}</td>
@@ -2756,10 +2763,109 @@ function pocSourceRow(r = []) {
     <td class="py-2 px-3 text-sm w-32 align-top" contenteditable="true">${esc(volume)}</td>
     <td class="py-2 px-3 text-sm w-32 align-top" contenteditable="true">${esc(ing_status)}</td>
     <td class="py-2 px-3 text-sm align-top" contenteditable="true">${esc(notes)}</td>
-    <td class="py-2 px-2 w-6 no-print align-top text-center">
-      <button onclick="this.closest('tr').remove()" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    <td data-poc-skip class="py-2 px-2 w-6 no-print align-top text-center">
+      <button onclick="pocDeleteSourceRow(this)" class="text-gray-200 hover:text-red-400 text-base leading-none opacity-0 group-hover:opacity-100 transition-opacity">×</button>
     </td>
-  </tr>`
+  </tr>
+  <tr class="poc-detail-row hidden" id="${uid}"><td colspan="9" class="p-0 bg-gray-50/70 border-b border-gray-200">
+    <div id="${uid}-body" class="px-5 py-4"></div>
+  </td></tr>`
+}
+
+function pocDeleteSourceRow(btn) {
+  const row = btn.closest('tr')
+  const detail = row.nextElementSibling
+  row.remove()
+  if (detail && detail.classList.contains('poc-detail-row')) detail.remove()
+}
+
+async function pocToggleSourceDetail(btn, uid) {
+  const detail = document.getElementById(uid)
+  const chev = btn.querySelector('[data-poc-chev]')
+  if (!detail) return
+  const hidden = detail.classList.toggle('hidden')
+  if (chev) chev.style.transform = hidden ? '' : 'rotate(90deg)'
+  if (hidden) return
+  const body = document.getElementById(uid + '-body')
+  if (!body) return
+  // Source name lives in the 3rd cell (chevron=0, status=1, name=2)
+  const dataRow = btn.closest('tr')
+  const name = (dataRow.cells[2]?.textContent || '').trim()
+  if (body.dataset.loadedFor === name && body.dataset.loaded === '1') return
+  body.innerHTML = '<div class="text-sm text-gray-400 py-4 animate-pulse">Loading pipeline &amp; generating test logs…</div>'
+  try {
+    const data = await apiGet('/api/coverage/source-pipeline?source=' + encodeURIComponent(name))
+    body.innerHTML = pocRenderSourceDetail(data)
+    body.dataset.loaded = '1'
+    body.dataset.loadedFor = name
+  } catch(e) {
+    body.innerHTML = `<p class="text-sm text-red-400 py-3">${esc(e.message)}</p>`
+  }
+}
+
+function pocRenderSourceDetail(d) {
+  const ICONS = ['📥','📄','⚙️','🏷️','🔍','🧪']
+  const strip = d.stages.map((s, i) => `
+    <div class="flex flex-col items-center gap-1 text-center shrink-0" title="${esc(s.stage)}">
+      <span class="text-lg ${s.done ? '' : 'opacity-25 grayscale'}">${ICONS[i] || '●'}</span>
+      <span class="text-[10px] leading-tight ${s.done ? 'text-emerald-600 font-medium' : 'text-gray-400'}">${esc(s.stage)}</span>
+    </div>`).join('<div class="flex-1 h-px bg-gray-200 mt-3 min-w-[12px]"></div>')
+
+  const resolvedTxt = (d.resolved && d.resolved.length)
+    ? d.resolved.map(r => `<span class="px-2 py-0.5 rounded-full bg-purple-50 border border-purple-200 text-xs text-purple-700">${esc(r)}</span>`).join(' ')
+    : '<span class="text-xs text-amber-600">No matching SentinelOne dataSource.name — rename this source to its canonical name (e.g. "Windows Event Logs", "FortiGate", "Azure Active Directory").</span>'
+
+  let cards
+  if (!d.detections || !d.detections.length) {
+    cards = `<div class="text-sm text-gray-500 py-3">No detection rules are mapped to this source, so there's no firing criteria to generate.</div>`
+  } else {
+    cards = d.detections.map(det => {
+      const logJson = JSON.stringify(det.sample_log, null, 2)
+      const skipped = (det.fields_skipped || []).length
+        ? `<div class="mt-2 text-[11px] text-amber-600">⚠ Set manually to fire: ${det.fields_skipped.map(f => esc(f.key) + ' (' + esc(f.reason) + ')').join(', ')}</div>`
+        : ''
+      return `<div class="poc-det-card border border-gray-200 rounded-lg bg-white mb-3">
+        <div class="px-3 py-2 border-b border-gray-100 flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-sm font-semibold text-gray-900">${esc(det.rule_name)}</div>
+            ${det.description ? `<div class="text-xs text-gray-500 mt-0.5">${esc(det.description)}</div>` : ''}
+          </div>
+          <button onclick="pocCopyLog(this)" class="shrink-0 text-xs px-2 py-1 rounded border border-gray-200 text-gray-600 hover:bg-gray-50 no-print">Copy log</button>
+        </div>
+        <div class="px-3 py-2">
+          <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Detection criteria (PowerQuery)</div>
+          <pre class="text-[11px] bg-gray-900 text-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap mb-3">${esc(det.query)}</pre>
+          <div class="text-[11px] text-gray-400 uppercase tracking-wide mb-1">Sample log to fire this rule</div>
+          <pre data-poc-log class="text-[11px] bg-gray-50 border border-gray-200 rounded p-2 overflow-x-auto">${esc(logJson)}</pre>
+          ${skipped}
+        </div>
+      </div>`
+    }).join('')
+    if (d.total_rules > d.shown) {
+      cards += `<div class="text-xs text-gray-400 mt-1">Showing ${d.shown} of ${d.total_rules} mapped rules.</div>`
+    }
+  }
+
+  return `
+    <div class="flex items-center gap-1 mb-4 overflow-x-auto pb-1">${strip}</div>
+    <div class="flex flex-wrap items-center gap-2 mb-4">
+      <span class="text-xs text-gray-500">Resolved to:</span> ${resolvedTxt}
+    </div>
+    <div class="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+      🧪 Test Log Generator — ${d.total_rules} detection rule${d.total_rules !== 1 ? 's' : ''} mapped
+    </div>
+    ${cards}`
+}
+
+function pocCopyLog(btn) {
+  const card = btn.closest('.poc-det-card')
+  const pre = card?.querySelector('[data-poc-log]')
+  if (!pre) return
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    const orig = btn.textContent
+    btn.textContent = 'Copied ✓'
+    setTimeout(() => { btn.textContent = orig }, 1500)
+  })
 }
 
 function pocCriteriaRow(r = []) {
@@ -2820,8 +2926,8 @@ function pocAddRow(type, tbodyId) {
   const fn = fns[type]; if (!fn) return
   const wrapper = document.createElement('tbody')
   wrapper.innerHTML = fn([])
-  const newRow = wrapper.querySelector('tr')
-  if (newRow) tbody.appendChild(newRow)
+  // Some renderers (sources) return a data row + a hidden detail row — append all
+  Array.from(wrapper.children).forEach(tr => tbody.appendChild(tr))
 }
 
 // Serialize / deserialize ────────────────────────────────────────────────────
@@ -2829,15 +2935,18 @@ function pocAddRow(type, tbodyId) {
 function pocTableCollect(tbodyId, colCount) {
   const tbody = document.getElementById(tbodyId)
   if (!tbody) return []
-  return Array.from(tbody.rows).map(row =>
-    Array.from(row.cells).slice(0, colCount).map(cell => {
-      const statusSp = cell.querySelector('[data-poc-status]')
-      if (statusSp) return statusSp.dataset.pocStatus || ''
-      const sevSp = cell.querySelector('[data-poc-severity]')
-      if (sevSp) return sevSp.dataset.pocSeverity || 'Low'
-      return cell.textContent.trim()
+  return Array.from(tbody.rows)
+    .filter(row => !row.classList.contains('poc-detail-row'))
+    .map(row => {
+      const dataCells = Array.from(row.cells).filter(c => !c.hasAttribute('data-poc-skip'))
+      return dataCells.slice(0, colCount).map(cell => {
+        const statusSp = cell.querySelector('[data-poc-status]')
+        if (statusSp) return statusSp.dataset.pocStatus || ''
+        const sevSp = cell.querySelector('[data-poc-severity]')
+        if (sevSp) return sevSp.dataset.pocSeverity || 'Low'
+        return cell.textContent.trim()
+      })
     })
-  )
 }
 
 function pocCollect() {
@@ -3194,8 +3303,9 @@ Technical Team:
     <!-- Data Sources -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm p-5">
       <h2 class="text-base font-semibold text-gray-900 mb-4">Data Sources</h2>
+      <p class="text-xs text-gray-500 mb-3 no-print">Click the arrow on any source to expand its onboarding pipeline and generate sample logs that fire its mapped detection rules.</p>
       ${pocTable('poc-sources-body',
-        ['Status','Source Name','Origin / System','Type','Volume (GB/day)','Ingestion Status','Notes'],
+        ['','Status','Source Name','Origin / System','Type','Volume (GB/day)','Ingestion Status','Notes'],
         POC_DEFAULT_SOURCES, pocSourceRow, 'Add Data Source')}
     </div>
 

@@ -332,7 +332,7 @@ def _fetch_parsers_from_console(parsers_dir: str) -> dict:
             "Content-Type":  "application/json",
         })
         try:
-            with urllib.request.urlopen(req, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:  # nosec B310 - URL built from SDL_XDR_URL env var, not user input
                 return _json.loads(r.read())
         except urllib.error.HTTPError as e:
             err_body = e.read().decode(errors="replace")[:300]
@@ -1428,6 +1428,243 @@ def get_onboarding_status(db: Session = Depends(get_db)):
         "fully_onboarded": sum(1 for s in out if s["completed"] == s["total"]),
         "in_progress": sum(1 for s in out if 0 < s["completed"] < s["total"]),
         "not_started": sum(1 for s in out if s["completed"] == 0),
+    }
+
+
+# ── Source pipeline + synthetic test-log generation ──────────────────────────
+import re as _re_sp
+from datetime import timezone as _tz
+
+# Cache the raw detections.json (it carries full query bodies + pair_list,
+# which the ParsedRule DB rows do NOT store). Keyed on file mtime.
+_RAW_DETECTIONS_CACHE: dict = {"mtime": None, "rules": None, "ds_values": None}
+
+# Friendly POC source names → canonical SentinelOne dataSource.name values.
+_SOURCE_ALIASES = {
+    "winevent":          ["Windows Event Logs"],
+    "wineventlog":       ["Windows Event Logs"],
+    "wineventlogs":      ["Windows Event Logs"],
+    "wel":               ["Windows Event Logs"],
+    "windows":           ["Windows Event Logs"],
+    "windowseventlog":   ["Windows Event Logs"],
+    "windowseventlogs":  ["Windows Event Logs"],
+    "firewall":          ["FortiGate", "Cisco Firewall Threat Defense",
+                          "Palo Alto Networks Firewall", "Check Point Next Generation Firewall"],
+    "fortigate":         ["FortiGate"],
+    "fortinet":          ["FortiGate"],
+    "cisco":             ["Cisco Firewall Threat Defense"],
+    "paloalto":          ["Palo Alto Networks Firewall"],
+    "checkpoint":        ["Check Point Next Generation Firewall"],
+    "entra":             ["Azure Active Directory", "Entra ID Protection"],
+    "entraid":           ["Azure Active Directory", "Entra ID Protection"],
+    "azuread":           ["Azure Active Directory"],
+    "azureactivedirectory": ["Azure Active Directory"],
+    "okta":              ["Okta"],
+    "o365":              ["Microsoft O365"],
+    "office365":         ["Microsoft O365"],
+    "microsoft365":      ["Microsoft O365"],
+    "zscaler":           ["Zscaler Internet Access"],
+    "cloudtrail":        ["CloudTrail"],
+    "aws":               ["CloudTrail"],
+    "gcp":               ["GCP Audit"],
+    "azure":             ["Azure Platform"],
+}
+
+
+def _sp_norm(s: str) -> str:
+    return _re_sp.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _load_raw_detections() -> list:
+    """Load + cache detections.json with full query bodies. Returns [] if absent."""
+    path = DETECTIONS_FILE
+    if not os.path.exists(path):
+        return []
+    mtime = os.path.getmtime(path)
+    if _RAW_DETECTIONS_CACHE["mtime"] == mtime and _RAW_DETECTIONS_CACHE["rules"] is not None:
+        return _RAW_DETECTIONS_CACHE["rules"]
+    with open(path, "r", encoding="utf-8") as fh:
+        data = json.load(fh)
+    rules = data.get("results", [])
+    rules = [r for r in rules if not any(r.get("file", "").startswith(p) for p in _EXCLUDED_PATHS)]
+    ds_values: set = set()
+    for r in rules:
+        for q in r.get("queries", []):
+            for v in q.get("pairs", {}).get("dataSource.name", []):
+                if isinstance(v, str):
+                    ds_values.add(v)
+                elif isinstance(v, list):
+                    ds_values.update(str(x) for x in v)
+    _RAW_DETECTIONS_CACHE.update({"mtime": mtime, "rules": rules, "ds_values": ds_values})
+    return rules
+
+
+def _resolve_source(name: str, ds_values: set) -> list:
+    """Map a (possibly friendly) source name to canonical dataSource.name value(s)."""
+    n = _sp_norm(name)
+    if not n:
+        return []
+    if n in _SOURCE_ALIASES:
+        present = [v for v in _SOURCE_ALIASES[n] if v in ds_values]
+        return present or _SOURCE_ALIASES[n]
+    exact = [v for v in ds_values if _sp_norm(v) == n]
+    if exact:
+        return exact
+    return [v for v in ds_values if n in _sp_norm(v) or _sp_norm(v) in n]
+
+
+def _rule_data_sources(rule: dict) -> set:
+    out: set = set()
+    for q in rule.get("queries", []):
+        for v in q.get("pairs", {}).get("dataSource.name", []):
+            if isinstance(v, str):
+                out.add(v)
+            elif isinstance(v, list):
+                out.update(str(x) for x in v)
+    return out
+
+
+def _set_nested(d: dict, dotted: str, value) -> None:
+    parts = dotted.split(".")
+    cur = d
+    for p in parts[:-1]:
+        nxt = cur.get(p)
+        if not isinstance(nxt, dict):
+            nxt = {}
+            cur[p] = nxt
+        cur = nxt
+    cur[parts[-1]] = value
+
+
+def _is_negated(query: str, key: str) -> bool:
+    """Heuristic: is this field negated in the query (`not (key ...)`)?
+    Negated conditions must be ABSENT for the rule to fire, so we skip them."""
+    if not query:
+        return False
+    return bool(_re_sp.search(r"not\s*\(?\s*" + _re_sp.escape(key), query, _re_sp.IGNORECASE))
+
+
+def _sample_value(op: str, value):
+    """Produce a concrete value that satisfies a positive criterion."""
+    if isinstance(value, list):
+        flat = value[0] if value else ""
+        if isinstance(flat, list):
+            flat = flat[0] if flat else ""
+        value = flat
+    if value in ("*", "", None):
+        return None  # existence/wildcard — caller sets manually
+    if op == "matches":
+        return None  # regex — can't reverse reliably
+    return value
+
+
+def _build_sample_log(rule: dict) -> tuple:
+    """Build a synthetic SDL event that satisfies a rule's positive criteria."""
+    q0 = (rule.get("queries") or [{}])[0]
+    query = q0.get("query", "")
+    pairs = q0.get("pair_list", [])
+    log: dict = {}
+    set_fields: list = []
+    skipped: list = []
+    for p in pairs:
+        key, op, value = p.get("key"), p.get("op"), p.get("value")
+        if not key:
+            continue
+        if _is_negated(query, key):
+            skipped.append({"key": key, "reason": "negated — must be absent"})
+            continue
+        sv = _sample_value(op, value)
+        if sv is None:
+            skipped.append({"key": key, "reason": "wildcard/regex — set manually"})
+            continue
+        _set_nested(log, key, sv)
+        set_fields.append(key)
+    log.setdefault("@timestamp", datetime.now(_tz.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"))
+    return query, log, set_fields, skipped
+
+
+@router.get("/source-pipeline")
+def get_source_pipeline(source: str, limit: int = 20, db: Session = Depends(get_db)):
+    """Onboarding pipeline status for a single source + synthetic test logs that
+    would fire each mapped detection rule. The 6th stage ('Rules Firing') is
+    replaced with 'Test Log Ready' — proving we can generate firing criteria."""
+    rules = _load_raw_detections()
+    ds_values = _RAW_DETECTIONS_CACHE.get("ds_values") or set()
+    resolved = _resolve_source(source, ds_values)
+    resolved_set = set(resolved)
+
+    matched = [r for r in rules if _rule_data_sources(r) & resolved_set]
+    total_rules = len(matched)
+
+    detections = []
+    for r in matched[:limit]:
+        query, sample_log, set_fields, skipped = _build_sample_log(r)
+        detections.append({
+            "rule_name": r.get("name", "unnamed"),
+            "description": r.get("description", ""),
+            "file": r.get("file", ""),
+            "query": query,
+            "sample_log": sample_log,
+            "fields_set": set_fields,
+            "fields_skipped": skipped,
+        })
+
+    # ── Pipeline stages (best-effort from live sync data) ──
+    ds_index, stub_parsers = _build_parser_ds_index()
+    stub_names = {s["parser_name"] for s in stub_parsers}
+    firing_cache = {x.rule_name: x.alert_count for x in db.query(RuleFiringCache).all()}
+
+    cand_norms = {_sp_norm(x) for x in resolved} | {_sp_norm(source)}
+    src_match = None
+    for a in db.query(ActiveSource).all():
+        an = _sp_norm(a.source_name)
+        if an in cand_norms or any(cn and (cn in an or an in cn) for cn in cand_norms):
+            src_match = a
+            break
+
+    event_count   = (src_match.event_count if src_match else 0) or 0
+    parser_active = ((src_match.parser_detected or 0) > 0) if src_match else False
+
+    parser_found = None
+    for rn in resolved:
+        if rn in ds_index:
+            parser_found = ds_index[rn]
+            break
+    if parser_found is None:
+        for rn in resolved:
+            rnn = _sp_norm(rn)
+            for dn, info in ds_index.items():
+                if _sp_norm(dn) in rnn or rnn in _sp_norm(dn):
+                    parser_found = info
+                    break
+            if parser_found:
+                break
+
+    has_ds_name  = parser_found is not None and parser_found.get("parser_name") not in stub_names
+    rule_names   = [r.get("name") for r in matched]
+    rules_firing = any(firing_cache.get(rn, 0) > 0 for rn in rule_names)
+
+    stages = [
+        {"stage": "Data Received",   "done": event_count > 0},
+        {"stage": "Parser File",     "done": parser_found is not None},
+        {"stage": "Parser Active",   "done": parser_active},
+        {"stage": "Source Labeled",  "done": has_ds_name and parser_active},
+        {"stage": "Detection Rules", "done": total_rules > 0},
+        {"stage": "Test Log Ready",  "done": len(detections) > 0},
+    ]
+    completed = sum(1 for s in stages if s["done"])
+
+    return {
+        "source": source,
+        "resolved": resolved,
+        "event_count": event_count,
+        "stages": stages,
+        "completed": completed,
+        "total": len(stages),
+        "rules_firing": rules_firing,
+        "total_rules": total_rules,
+        "shown": len(detections),
+        "detections": detections,
     }
 
 
